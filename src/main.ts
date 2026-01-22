@@ -1,4 +1,5 @@
 import { Plugin, Notice, MarkdownView, Editor, EditorPosition } from 'obsidian';
+import { PeriodicNoteType } from './periodic-note-detector';
 import { PeriodicLinksSettings, DEFAULT_SETTINGS, PeriodicLinksSettingTab } from './settings';
 import { PeriodicNoteDetector } from './periodic-note-detector';
 import { NaturalLanguageParser } from './natural-language-parser';
@@ -14,7 +15,7 @@ export default class PeriodicLinksPlugin extends Plugin {
 		await this.loadSettings();
 
 		// Initialize core components
-		this.detector = new PeriodicNoteDetector(this.app);
+		this.detector = new PeriodicNoteDetector(this.app, this.settings.strictFolderCheck);
 		this.parser = new NaturalLanguageParser();
 		this.linkCreator = new LinkCreator(this.app, this.detector);
 
@@ -51,9 +52,28 @@ export default class PeriodicLinksPlugin extends Plugin {
 	private async handleEditorChange(editor: Editor, view: MarkdownView) {
 		if (!view.file) return;
 
-		// Only process if this is a periodic note
-		const periodicType = this.detector.detectPeriodicType(view.file);
-		if (!periodicType) return;
+		// Check work scope settings
+		let currentType: PeriodicNoteType | null = null;
+		let workAcrossAllPeriodicNotes = false;
+
+		if (this.settings.workScope === 'everywhere') {
+			// Work in any file
+			currentType = null;
+			workAcrossAllPeriodicNotes = true;
+		} else if (this.settings.workScope === 'all-periodic') {
+			// Work in any periodic note
+			currentType = this.detector.detectPeriodicType(view.file);
+			workAcrossAllPeriodicNotes = true;
+			if (!currentType) return; // Still need to be in some periodic note
+		} else {
+			// Work only in current periodic note type
+			currentType = this.detector.detectPeriodicType(view.file);
+			workAcrossAllPeriodicNotes = false;
+			if (!currentType) return;
+		}
+
+		// Check if natural language parsing is enabled
+		if (!this.settings.enableNaturalLanguage) return;
 
 		const cursor = editor.getCursor();
 		const currentLine = editor.getLine(cursor.line) || '';
@@ -66,7 +86,8 @@ export default class PeriodicLinksPlugin extends Plugin {
 
 		// Parse the natural language phrase (use the matched phrase as-is for parsing)
 		const parsedPhrase = phrase.toLowerCase(); // Still need lowercase for parsing logic
-		const linkTarget = this.parser.parsePhrase(parsedPhrase, periodicType, view.file);
+		const workEverywhere = this.settings.workScope === 'everywhere';
+		const linkTarget = this.parser.parsePhrase(parsedPhrase, currentType, view.file, this.settings.enableWrittenNumbers, workAcrossAllPeriodicNotes, workEverywhere);
 		if (!linkTarget) return;
 
 		// Create the link using the original capitalization
@@ -92,50 +113,56 @@ export default class PeriodicLinksPlugin extends Plugin {
 	}
 
 	private findNaturalLanguagePhrase(line: string, cursor: EditorPosition): { phrase: string, trailing: string, start: number, end: number } | null {
-		// Look for natural language phrases ending with punctuation or space
-		const phrases = [
-			'yesterday', 'tomorrow', 'last week', 'next week', 'this week',
-			'last month', 'next month', 'this month',
-			'last quarter', 'next quarter', 'this quarter',
-			'last year', 'next year', 'this year'
-		];
-
-		// Also support "X days/weeks/months ago" and "in X days/weeks/months"
-		const dynamicPatterns = [
-			/(\d+)\s+(days?|weeks?|months?|quarters?|years?)\s+ago\b/i,
-			/in\s+(\d+)\s+(days?|weeks?|months?|quarters?|years?)\b/i,
-			/(\d+)\s+(days?|weeks?|months?|quarters?|years?)\s+from\s+now\b/i
-		];
-
 		// Check for cursor position being after punctuation/space that follows a phrase
 		const beforeCursor = line.substring(0, cursor.ch);
 
-		// Check static phrases - match phrase followed by punctuation, space, or end of line
-		for (const phrase of phrases) {
-			const pattern = new RegExp(`\\b${phrase}([\\s.,;:!?"']*)$`, 'i');
-			const match = beforeCursor.match(pattern);
-			if (match && match.index !== undefined) {
-				const start = match.index;
-				const end = start + match[0].length;
-				const fullMatch = match[0];
-				const trailing = match[1] || ''; // The captured trailing characters
-				// Return the actual matched text with original capitalization, trimmed of trailing chars
-				const matchedText = fullMatch.replace(/[\s.,;:!?"']+$/, '');
-				return { phrase: matchedText, trailing, start, end };
-			}
-		}
+		// Static phrases
+		const staticPhrases = [
+			'yesterday', 'tomorrow', 'last week', 'next week', 'this week',
+			'last month', 'next month', 'this month',
+			'last quarter', 'previous quarter', 'next quarter', 'this quarter',
+			'last year', 'previous year', 'next year', 'this year'
+		];
 
-		// Check dynamic patterns - match phrase followed by punctuation, space, or end of line
-		for (const pattern of dynamicPatterns) {
-			const punctuatedPattern = new RegExp(pattern.source.replace(/\\b$/, '([\\s.,;:!?"\']*)$'), 'i');
-			const match = beforeCursor.match(punctuatedPattern);
-			if (match && match.index !== undefined) {
-				const fullMatch = match[0];
-				const trailing = match[match.length - 1] || ''; // Last capture group
-				const start = match.index;
-				const end = start + match[0].length;
-				const matchedText = fullMatch.replace(/[\s.,;:!?"']+$/, '');
-				return { phrase: matchedText, trailing, start, end };
+		if (this.settings.enableNaturalLanguage) {
+			// Check static phrases - match phrase followed by punctuation, space, or end of line
+			for (const phrase of staticPhrases) {
+				const pattern = new RegExp(`\\b${phrase}([\\s.,;:!?"']*)$`, 'i');
+				const match = beforeCursor.match(pattern);
+				if (match && match.index !== undefined) {
+					const start = match.index;
+					const end = start + match[0].length;
+					const fullMatch = match[0];
+					const trailing = match[1] || ''; // The captured trailing characters
+					// Return the actual matched text with original capitalization, trimmed of trailing chars
+					const matchedText = fullMatch.replace(/[\s.,;:!?"']+$/, '');
+					return { phrase: matchedText, trailing, start, end };
+				}
+			}
+
+			// Dynamic patterns (part of natural language feature)
+			const numberPattern = this.settings.enableWrittenNumbers
+				? '(\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)'
+				: '(\\d+)';
+			const unitPattern = '(days?|weeks?|months?|quarters?|years?)';
+
+			const dynamicPatterns = [
+				new RegExp(`${numberPattern}\\s+${unitPattern}\\s+ago([\\s.,;:!?"']*)$`, 'i'),
+				new RegExp(`in\\s+${numberPattern}\\s+${unitPattern}([\\s.,;:!?"']*)$`, 'i'),
+				new RegExp(`${numberPattern}\\s+${unitPattern}\\s+from\\s+now([\\s.,;:!?"']*)$`, 'i')
+			];
+
+			// Check dynamic patterns
+			for (const pattern of dynamicPatterns) {
+				const match = beforeCursor.match(pattern);
+				if (match && match.index !== undefined) {
+					const fullMatch = match[0];
+					const trailing = match[match.length - 1] || ''; // Last capture group
+					const start = match.index;
+					const end = start + match[0].length;
+					const matchedText = fullMatch.replace(/[\s.,;:!?"']+$/, '');
+					return { phrase: matchedText, trailing, start, end };
+				}
 			}
 		}
 

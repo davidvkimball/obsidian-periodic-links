@@ -2,13 +2,21 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import PeriodicLinksPlugin from "./main";
 
 export interface PeriodicLinksSettings {
-	detectionMethod: 'auto' | 'folder' | 'property' | 'format';
 	enableCleanup: boolean;
+	enableNaturalLanguage: boolean;
+	enableWrittenNumbers: boolean;
+	enableExtendedPhrases: boolean;
+	workScope: 'current-type' | 'all-periodic' | 'everywhere';
+	strictFolderCheck: boolean;
 }
 
 export const DEFAULT_SETTINGS: PeriodicLinksSettings = {
-	detectionMethod: 'auto',
-	enableCleanup: true
+	enableCleanup: true,
+	enableNaturalLanguage: true,
+	enableWrittenNumbers: true,
+	enableExtendedPhrases: true,
+	workScope: 'current-type',
+	strictFolderCheck: false
 }
 
 export class PeriodicLinksSettingTab extends PluginSettingTab {
@@ -25,30 +33,71 @@ export class PeriodicLinksSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setHeading()
-			.setName('Periodic links settings');
-
-		new Setting(containerEl)
-			.setName('Detection method')
-			.setDesc('How to detect periodic notes (auto tries all methods)')
-			.addDropdown(dropdown => dropdown
-				.addOption('auto', 'Auto-detect')
-				.addOption('folder', 'Folder-based')
-				.addOption('property', 'Property-based')
-				.addOption('format', 'Format-based')
-				.setValue(this.plugin.settings.detectionMethod)
-				.onChange(async (value: PeriodicLinksSettings['detectionMethod']) => {
-					this.plugin.settings.detectionMethod = value;
+			.setName('Strict folder check')
+			.setDesc('Require notes to match both format and folder location (more precise but restrictive)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.strictFolderCheck)
+				.onChange(async (value) => {
+					this.plugin.settings.strictFolderCheck = value;
 					await this.plugin.saveSettings();
 				}));
 
 		new Setting(containerEl)
-			.setName('Enable cleanup')
-			.setDesc('Enable cleanup of broken periodic note links')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.enableCleanup)
+			.setName('Note creation mode')
+			.setDesc('Choose whether to create notes immediately or create links to potential notes')
+			.addDropdown(dropdown => dropdown
+				.addOption('immediate', 'Create notes immediately')
+				.addOption('on-demand', 'Create links to potential notes')
+				.setValue(this.plugin.settings.enableCleanup ? 'immediate' : 'on-demand')
 				.onChange(async (value) => {
-					this.plugin.settings.enableCleanup = value;
+					this.plugin.settings.enableCleanup = value === 'immediate';
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Work scope')
+			.setDesc('Choose where natural language parsing should work')
+			.addDropdown(dropdown => dropdown
+				.addOption('current-type', 'Only in current periodic note type')
+				.addOption('all-periodic', 'Across all periodic note types')
+				.addOption('everywhere', 'In any file')
+				.setValue(this.plugin.settings.workScope)
+				.onChange(async (value: PeriodicLinksSettings['workScope']) => {
+					this.plugin.settings.workScope = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setHeading()
+			.setName('Natural language settings');
+
+		new Setting(containerEl)
+			.setName('Enable natural language')
+			.setDesc('Enable basic natural language phrases (yesterday, tomorrow, last week, etc.)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableNaturalLanguage)
+				.onChange(async (value) => {
+					this.plugin.settings.enableNaturalLanguage = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Enable written numbers')
+			.setDesc('Enable written number support (two, three, five instead of 2, 3, 5)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableWrittenNumbers)
+				.onChange(async (value) => {
+					this.plugin.settings.enableWrittenNumbers = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Enable extended phrases')
+			.setDesc('Enable extended phrases (previous quarter, in 2 weeks, 3 years ago, etc.)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableExtendedPhrases)
+				.onChange(async (value) => {
+					this.plugin.settings.enableExtendedPhrases = value;
 					await this.plugin.saveSettings();
 				}));
 	}

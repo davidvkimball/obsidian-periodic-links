@@ -71,11 +71,13 @@ interface CalendarSetManager {
 
 export class PeriodicNoteDetector {
 	private app: App;
+	private strictFolderCheck: boolean = false;
 	private coreDailyNotesConfig: PeriodicNoteConfig | null = null;
 	private periodicNotesConfig: Map<PeriodicNoteType, PeriodicNoteConfig> = new Map();
 
-	constructor(app: App) {
+	constructor(app: App, strictFolderCheck: boolean = false) {
 		this.app = app;
+		this.strictFolderCheck = strictFolderCheck;
 		this.loadConfigurations();
 	}
 
@@ -210,7 +212,7 @@ export class PeriodicNoteDetector {
 		const fileName = file.basename;
 		const filePath = file.path;
 
-		// Check against all configured periodic note types
+		// Check against all configured periodic note types using format-based detection
 		const allConfigs = [
 			...(this.coreDailyNotesConfig ? [this.coreDailyNotesConfig] : []),
 			...Array.from(this.periodicNotesConfig.values())
@@ -226,8 +228,19 @@ export class PeriodicNoteDetector {
 	}
 
 	private matchesConfig(fileName: string, filePath: string, config: PeriodicNoteConfig): boolean {
-		// Check folder match
-		if (config.folder) {
+		// Always check format match using moment.js parsing (primary detection method)
+		try {
+			const dateInputStr = fileName.replace(/\.md$/, '');
+			const date = moment(dateInputStr, config.format, true);
+			if (!date.isValid()) {
+				return false;
+			}
+		} catch {
+			return false;
+		}
+
+		// Optional strict folder check
+		if (this.strictFolderCheck && config.folder) {
 			const normalizedFolder = config.folder.replace(/\\/g, '/');
 			const fileDir = filePath.substring(0, filePath.lastIndexOf('/'));
 			if (!fileDir.startsWith(normalizedFolder)) {
@@ -235,17 +248,9 @@ export class PeriodicNoteDetector {
 			}
 		}
 
-		// Check format match using moment.js parsing (like Periodic Notes plugin)
-		try {
-			// For simple formats, just use the filename
-			// Remove .md extension if present
-			const dateInputStr = fileName.replace(/\.md$/, '');
-			const date = moment(dateInputStr, config.format, true);
-			return date.isValid();
-		} catch {
-			return false;
-		}
+		return true;
 	}
+
 
 
 	getConfig(type: PeriodicNoteType): PeriodicNoteConfig | null {

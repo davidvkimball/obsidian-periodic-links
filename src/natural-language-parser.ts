@@ -17,14 +17,49 @@ interface DateMatch {
 }
 
 export class NaturalLanguageParser {
-	parsePhrase(phrase: string, currentType: PeriodicNoteType, currentFile: TFile): LinkTarget | null {
+	private writtenNumbers: Record<string, number> = {
+		'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+		'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+		'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14, 'fifteen': 15,
+		'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19, 'twenty': 20,
+		'thirty': 30, 'forty': 40, 'fifty': 50, 'sixty': 60, 'seventy': 70,
+		'eighty': 80, 'ninety': 90
+	};
+
+	private parseNumber(word: string): number | null {
+		const lower = word.toLowerCase();
+		if (this.writtenNumbers[lower]) {
+			return this.writtenNumbers[lower];
+		}
+		const num = parseInt(lower);
+		return isNaN(num) ? null : num;
+	}
+
+	private isValidPluralization(count: number, unit: string): boolean {
+		// For count = 1, accept both "day" and "days"
+		// For count > 1, require plural form ("days", not "day")
+		if (count === 1) {
+			return unit === 'day' || unit === 'days' || unit === 'week' || unit === 'weeks' ||
+				   unit === 'month' || unit === 'months' || unit === 'quarter' || unit === 'quarters' ||
+				   unit === 'year' || unit === 'years';
+		} else {
+			const isPlural = unit.endsWith('s');
+			return isPlural;
+		}
+	}
+
+	parsePhrase(phrase: string, currentType: PeriodicNoteType | null, currentFile: TFile, enableWrittenNumbers: boolean = true, workAcrossAllPeriodicNotes: boolean = false, workEverywhere: boolean = false): LinkTarget | null {
 		const now = moment();
 
 		// Handle current file's date as reference point
 		let referenceDate: moment.Moment;
-		const config = this.extractDateFromFilename(currentFile.basename, currentType);
-		if (config) {
-			referenceDate = config.date;
+		if (currentType) {
+			const config = this.extractDateFromFilename(currentFile.basename, currentType);
+			if (config) {
+				referenceDate = config.date;
+			} else {
+				referenceDate = now;
+			}
 		} else {
 			referenceDate = now;
 		}
@@ -34,126 +69,146 @@ export class NaturalLanguageParser {
 		// Static phrases
 		switch (lowerPhrase) {
 			case 'yesterday':
-				if (currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'daily') {
 					return { type: 'daily', date: referenceDate.clone().subtract(1, 'day') };
 				}
 				break;
 
 			case 'tomorrow':
-				if (currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'daily') {
 					return { type: 'daily', date: referenceDate.clone().add(1, 'day') };
 				}
 				break;
 
 			case 'last week':
-				if (currentType === 'weekly' || currentType === 'daily') {
-					const type = currentType === 'weekly' ? 'weekly' : 'weekly';
-					return { type, date: referenceDate.clone().subtract(1, 'week') };
+				if (workAcrossAllPeriodicNotes || currentType === 'weekly' || currentType === 'daily') {
+					return { type: 'weekly', date: referenceDate.clone().subtract(1, 'week') };
 				}
 				break;
 
 			case 'next week':
-				if (currentType === 'weekly' || currentType === 'daily') {
-					const type = currentType === 'weekly' ? 'weekly' : 'weekly';
-					return { type, date: referenceDate.clone().add(1, 'week') };
+				if (workAcrossAllPeriodicNotes || currentType === 'weekly' || currentType === 'daily') {
+					return { type: 'weekly', date: referenceDate.clone().add(1, 'week') };
 				}
 				break;
 
 			case 'this week':
-				if (currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'daily') {
 					return { type: 'weekly', date: referenceDate.clone() };
 				}
 				break;
 
 			case 'last month':
-				if (currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
-					const type = currentType === 'monthly' ? 'monthly' : 'monthly';
-					return { type, date: referenceDate.clone().subtract(1, 'month') };
+				if (workAcrossAllPeriodicNotes || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+					return { type: 'monthly', date: referenceDate.clone().subtract(1, 'month') };
 				}
 				break;
 
 			case 'next month':
-				if (currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
-					const type = currentType === 'monthly' ? 'monthly' : 'monthly';
-					return { type, date: referenceDate.clone().add(1, 'month') };
+				if (workAcrossAllPeriodicNotes || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+					return { type: 'monthly', date: referenceDate.clone().add(1, 'month') };
 				}
 				break;
 
 			case 'this month':
-				if (currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'weekly' || currentType === 'daily') {
 					return { type: 'monthly', date: referenceDate.clone() };
 				}
 				break;
 
 			case 'last quarter':
-				if (currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
-					const type = currentType === 'quarterly' ? 'quarterly' : 'quarterly';
-					return { type, date: referenceDate.clone().subtract(3, 'months') };
+			case 'previous quarter':
+				if (workAcrossAllPeriodicNotes || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+					return { type: 'quarterly', date: referenceDate.clone().subtract(3, 'months') };
 				}
 				break;
 
 			case 'next quarter':
-				if (currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
-					const type = currentType === 'quarterly' ? 'quarterly' : 'quarterly';
-					return { type, date: referenceDate.clone().add(3, 'months') };
+				if (workAcrossAllPeriodicNotes || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+					return { type: 'quarterly', date: referenceDate.clone().add(3, 'months') };
 				}
 				break;
 
 			case 'this quarter':
-				if (currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
 					return { type: 'quarterly', date: referenceDate.clone() };
 				}
 				break;
 
 			case 'last year':
-				if (currentType === 'yearly' || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
-					const type = currentType === 'yearly' ? 'yearly' : 'yearly';
-					return { type, date: referenceDate.clone().subtract(1, 'year') };
+			case 'previous year':
+				if (workAcrossAllPeriodicNotes || currentType === 'yearly' || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+					return { type: 'yearly', date: referenceDate.clone().subtract(1, 'year') };
 				}
 				break;
 
 			case 'next year':
-				if (currentType === 'yearly' || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
-					const type = currentType === 'yearly' ? 'yearly' : 'yearly';
-					return { type, date: referenceDate.clone().add(1, 'year') };
+				if (workAcrossAllPeriodicNotes || currentType === 'yearly' || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+					return { type: 'yearly', date: referenceDate.clone().add(1, 'year') };
 				}
 				break;
 
 			case 'this year':
-				if (currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
 					return { type: 'yearly', date: referenceDate.clone() };
 				}
 				break;
 		}
 
 		// Dynamic patterns
-		const agoMatch = phrase.match(/(\d+)\s+(days?|weeks?|months?|quarters?|years?)\s+ago/i);
+		// Dynamic patterns with written number support and proper pluralization
+		const numberPattern = enableWrittenNumbers
+			? '(\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)'
+			: '(\\d+)';
+		// Use stricter pluralization: require 's' for plural forms when number > 1
+		const unitPattern = '(days?|weeks?|months?|quarters?|years?)';
+
+		// Helper function to validate pluralization
+		const isValidPluralization = (count: number, unit: string): boolean => {
+			const isPlural = unit.endsWith('s');
+			const shouldBePlural = count !== 1;
+			return isPlural === shouldBePlural;
+		};
+
+		// X units ago
+		const agoPattern = new RegExp(`${numberPattern}\\s+${unitPattern}\\s+ago`, 'i');
+		const agoMatch = phrase.match(agoPattern);
 		if (agoMatch && agoMatch[1] && agoMatch[2]) {
-			const count = parseInt(agoMatch[1]);
+			const count = this.parseNumber(agoMatch[1]);
 			const unit = this.normalizeUnit(agoMatch[2]);
-			const type = this.unitToType(unit, currentType);
-			if (type) {
-				return { type, date: referenceDate.clone().subtract(count, unit) };
+			if (count && unit && isValidPluralization(count, agoMatch[2])) {
+				const type = this.unitToType(unit, currentType, workAcrossAllPeriodicNotes);
+				if (type) {
+					return { type, date: referenceDate.clone().subtract(count, unit) };
+				}
 			}
 		}
 
-		const inMatch = phrase.match(/in\s+(\d+)\s+(days?|weeks?|months?|quarters?|years?)/i);
+		// in X units
+		const inPattern = new RegExp(`in\\s+${numberPattern}\\s+${unitPattern}`, 'i');
+		const inMatch = phrase.match(inPattern);
 		if (inMatch && inMatch[1] && inMatch[2]) {
-			const count = parseInt(inMatch[1]);
+			const count = this.parseNumber(inMatch[1]);
 			const unit = this.normalizeUnit(inMatch[2]);
-			const type = this.unitToType(unit, currentType);
-			if (type) {
-				return { type, date: referenceDate.clone().add(count, unit) };
+			if (count && unit && isValidPluralization(count, inMatch[2])) {
+				const type = this.unitToType(unit, currentType, workAcrossAllPeriodicNotes);
+				if (type) {
+					return { type, date: referenceDate.clone().add(count, unit) };
+				}
 			}
 		}
 
-		const fromNowMatch = phrase.match(/(\d+)\s+(days?|weeks?|months?|quarters?|years?)\s+from\s+now/i);
+		// X units from now
+		const fromNowPattern = new RegExp(`${numberPattern}\\s+${unitPattern}\\s+from\\s+now`, 'i');
+		const fromNowMatch = phrase.match(fromNowPattern);
 		if (fromNowMatch && fromNowMatch[1] && fromNowMatch[2]) {
-			const count = parseInt(fromNowMatch[1]);
+			const count = this.parseNumber(fromNowMatch[1]);
 			const unit = this.normalizeUnit(fromNowMatch[2]);
-			const type = this.unitToType(unit, currentType);
-			if (type) {
-				return { type, date: now.clone().add(count, unit) };
+			if (count && unit && isValidPluralization(count, fromNowMatch[2])) {
+				const type = this.unitToType(unit, currentType, workAcrossAllPeriodicNotes);
+				if (type) {
+					return { type, date: now.clone().add(count, unit) };
+				}
 			}
 		}
 
@@ -233,18 +288,18 @@ export class NaturalLanguageParser {
 		}
 	}
 
-	private unitToType(unit: moment.unitOfTime.DurationConstructor, currentType: PeriodicNoteType): PeriodicNoteType | null {
+	private unitToType(unit: moment.unitOfTime.DurationConstructor, currentType: PeriodicNoteType | null, workAcrossAllPeriodicNotes: boolean): PeriodicNoteType | null {
 		switch (unit) {
 			case 'days':
-				return currentType === 'daily' ? 'daily' : null;
+				return workAcrossAllPeriodicNotes || currentType === 'daily' ? 'daily' : null;
 			case 'weeks':
-				return 'weekly';
+				return workAcrossAllPeriodicNotes || currentType === 'weekly' || currentType === 'daily' ? 'weekly' : null;
 			case 'months':
-				return 'monthly';
+				return workAcrossAllPeriodicNotes || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily' ? 'monthly' : null;
 			case 'quarters':
-				return 'quarterly';
+				return workAcrossAllPeriodicNotes || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily' ? 'quarterly' : null;
 			case 'years':
-				return 'yearly';
+				return 'yearly'; // Always allow yearly since it's the top level
 			default:
 				return null;
 		}

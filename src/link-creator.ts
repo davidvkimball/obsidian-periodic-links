@@ -84,8 +84,11 @@ export class LinkCreator {
 			return `[[${filename}|${originalPhrase}]]`;
 		}
 
-		// File doesn't exist - create it now with proper template and folder
-		try {
+		// Check creation mode
+		const settings = this.getPluginSettings();
+		if (settings?.enableCleanup === true) {
+			// Immediate creation mode - create the file now
+			try {
 			// Ensure the folder exists
 			if (config.folder) {
 				const folderExists = this.app.vault.getAbstractFileByPath(config.folder);
@@ -132,7 +135,7 @@ export class LinkCreator {
 				// Check Periodic Notes plugin if no template found from core plugin
 				if (!templatePath) {
 					const plugins = (this.app as { plugins?: PluginAPI }).plugins;
-					const periodicNotesPlugin = plugins?.plugins?.['periodic-notes'];
+					const periodicNotesPlugin = plugins?.plugins?.['periodic-notes'] as PeriodicNotesPlugin | undefined;
 					if (periodicNotesPlugin && periodicNotesPlugin._loaded) {
 						templatePath = this.getTemplatePath(target.type, periodicNotesPlugin.settings);
 					}
@@ -165,9 +168,13 @@ export class LinkCreator {
 
 			// Return natural-looking link without folder prefix
 			return `[[${filename}|${originalPhrase}]]`;
-		} catch (error: unknown) {
-			console.error('Failed to create periodic note:', error);
-			// Fall back to creating a link that will prompt user to create the file
+			} catch (error: unknown) {
+				console.error('Failed to create periodic note:', error);
+				// Fall back to creating a link that will prompt user to create the file
+				return `[[${filename}|${originalPhrase}]]`;
+			}
+		} else {
+			// On-demand creation mode - just return the link
 			return `[[${filename}|${originalPhrase}]]`;
 		}
 	}
