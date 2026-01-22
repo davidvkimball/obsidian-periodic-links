@@ -1,4 +1,5 @@
 import { App, TFile } from 'obsidian';
+import { moment } from 'obsidian';
 
 export type PeriodicNoteType = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
@@ -36,6 +37,22 @@ interface PeriodicNotesSettings {
 interface PeriodicNotesPlugin {
 	_loaded: boolean;
 	settings: PeriodicNotesSettings;
+	calendarSetManager?: CalendarSetManager;
+}
+
+interface LegacyPeriodicConfig {
+	enabled: boolean;
+	format?: string;
+	template?: string;
+	folder?: string;
+}
+
+interface LegacyPeriodicNotesSettings {
+	daily?: LegacyPeriodicConfig;
+	weekly?: LegacyPeriodicConfig;
+	monthly?: LegacyPeriodicConfig;
+	quarterly?: LegacyPeriodicConfig;
+	yearly?: LegacyPeriodicConfig;
 }
 
 interface PluginAPI {
@@ -45,6 +62,12 @@ interface PluginAPI {
 interface InternalPlugins {
 	plugins: Record<string, DailyNotesPlugin>;
 }
+
+interface CalendarSetManager {
+	getActiveConfig(granularity: string): { enabled: boolean; folder: string; format: string } | null;
+	getFormat(granularity: string): string;
+}
+
 
 export class PeriodicNoteDetector {
 	private app: App;
@@ -80,55 +103,106 @@ export class PeriodicNoteDetector {
 			const plugins = (this.app as { plugins?: PluginAPI }).plugins;
 			const periodicNotesPlugin = plugins?.plugins?.['periodic-notes'];
 			if (periodicNotesPlugin && periodicNotesPlugin._loaded) {
-				const settings = periodicNotesPlugin.settings;
+				// Check if using new CalendarSet system or legacy settings
+				if (periodicNotesPlugin.calendarSetManager) {
+					// New CalendarSet system
+					const calendarSetManager = periodicNotesPlugin.calendarSetManager;
 
-				// Daily notes
-				if (settings.dailyNotes) {
-					this.periodicNotesConfig.set('daily', {
-						type: 'daily',
-						format: settings.dailyNotes.format || 'YYYY-MM-DD',
-						folder: settings.dailyNotes.folder || ''
-					});
-				}
+					// Check each granularity
+					const granularities: Array<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'> = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'];
 
-				// Weekly notes
-				if (settings.weeklyNotes) {
-					this.periodicNotesConfig.set('weekly', {
-						type: 'weekly',
-						format: settings.weeklyNotes.format || 'gggg-[W]ww',
-						folder: settings.weeklyNotes.folder || ''
-					});
-				}
+					for (const granularity of granularities) {
+						try {
+							const config = calendarSetManager.getActiveConfig(granularity === 'daily' ? 'day' :
+								granularity === 'weekly' ? 'week' :
+								granularity === 'monthly' ? 'month' :
+								granularity === 'quarterly' ? 'quarter' : 'year');
 
-				// Monthly notes
-				if (settings.monthlyNotes) {
-					this.periodicNotesConfig.set('monthly', {
-						type: 'monthly',
-						format: settings.monthlyNotes.format || 'YYYY-MM',
-						folder: settings.monthlyNotes.folder || ''
-					});
-				}
+							if (config && config.enabled) {
+							const format = calendarSetManager.getFormat(granularity === 'daily' ? 'day' :
+								granularity === 'weekly' ? 'week' :
+								granularity === 'monthly' ? 'month' :
+								granularity === 'quarterly' ? 'quarter' : 'year');
 
-				// Quarterly notes
-				if (settings.quarterlyNotes) {
-					this.periodicNotesConfig.set('quarterly', {
-						type: 'quarterly',
-						format: settings.quarterlyNotes.format || 'YYYY-[Q]Q',
-						folder: settings.quarterlyNotes.folder || ''
-					});
-				}
+							this.periodicNotesConfig.set(granularity, {
+								type: granularity,
+								format: format,
+								folder: config.folder || ''
+							});
+							}
+						} catch {
+							// Granularity not configured, skip
+						}
+					}
+				} else {
+					// Legacy settings format
+					const settings = periodicNotesPlugin.settings as LegacyPeriodicNotesSettings;
 
-				// Yearly notes
-				if (settings.yearlyNotes) {
-					this.periodicNotesConfig.set('yearly', {
-						type: 'yearly',
-						format: settings.yearlyNotes.format || 'YYYY',
-						folder: settings.yearlyNotes.folder || ''
-					});
+					// Check legacy daily notes
+					if (settings?.daily?.enabled) {
+						this.periodicNotesConfig.set('daily', {
+							type: 'daily',
+							format: settings.daily.format || 'YYYY-MM-DD',
+							folder: settings.daily.folder || ''
+						});
+					}
+
+					// Check legacy weekly notes
+					if (settings?.weekly?.enabled) {
+						this.periodicNotesConfig.set('weekly', {
+							type: 'weekly',
+							format: settings.weekly.format || 'gggg-[W]ww',
+							folder: settings.weekly.folder || ''
+						});
+					}
+
+					// Check legacy monthly notes
+					if (settings?.monthly?.enabled) {
+						this.periodicNotesConfig.set('monthly', {
+							type: 'monthly',
+							format: settings.monthly.format || 'YYYY-MM',
+							folder: settings.monthly.folder || ''
+						});
+					}
+
+					// Check legacy quarterly notes
+					if (settings?.quarterly?.enabled) {
+						this.periodicNotesConfig.set('quarterly', {
+							type: 'quarterly',
+							format: settings.quarterly.format || 'YYYY-[Q]Q',
+							folder: settings.quarterly.folder || ''
+						});
+					}
+
+					// Check legacy yearly notes
+					if (settings?.yearly?.enabled) {
+						this.periodicNotesConfig.set('yearly', {
+							type: 'yearly',
+							format: settings.yearly.format || 'YYYY',
+							folder: settings.yearly.folder || ''
+						});
+					}
 				}
 			}
 		} catch {
 			// Periodic Notes plugin not available or not configured
+		}
+	}
+
+	private getDefaultFormat(type: PeriodicNoteType): string {
+		switch (type) {
+			case 'daily':
+				return 'YYYY-MM-DD';
+			case 'weekly':
+				return 'gggg-[W]ww';
+			case 'monthly':
+				return 'YYYY-MM';
+			case 'quarterly':
+				return 'YYYY-[Q]Q';
+			case 'yearly':
+				return 'YYYY';
+			default:
+				return 'YYYY-MM-DD';
 		}
 	}
 
@@ -161,36 +235,18 @@ export class PeriodicNoteDetector {
 			}
 		}
 
-		// Check format match using regex patterns
-		const pattern = this.formatToRegex(config.format);
-		return pattern.test(fileName);
+		// Check format match using moment.js parsing (like Periodic Notes plugin)
+		try {
+			// For simple formats, just use the filename
+			// Remove .md extension if present
+			const dateInputStr = fileName.replace(/\.md$/, '');
+			const date = moment(dateInputStr, config.format, true);
+			return date.isValid();
+		} catch {
+			return false;
+		}
 	}
 
-	private formatToRegex(format: string): RegExp {
-		// Convert moment.js format to regex based on Periodic Notes plugin patterns
-		let regex = format
-			.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape regex chars
-			.replace(/YYYY/g, '\\d{4}')           // Year
-			.replace(/MM/g, '\\d{2}')             // Month
-			.replace(/DD/g, '\\d{2}')             // Day
-			.replace(/gggg/g, '\\d{4}')           // Week year
-			.replace(/gg/g, '\\d{4}')             // Week year (2 digits)
-			.replace(/ww/g, '\\d{2}')             // Week
-			.replace(/w/g, '\\d{1,2}')            // Week (1-2 digits)
-			.replace(/W/g, 'W')                   // Week literal
-			.replace(/\[([^\]]+)\]/g, '$1')       // Remove moment brackets
-			.replace(/Q/g, '[1-4]')               // Quarter
-			.replace(/dddd/g, '[A-Za-z]+')        // Full day name
-			.replace(/ddd/g, '[A-Za-z]+')         // Short day name
-			.replace(/dd/g, '[A-Za-z]+')          // Min day name
-			.replace(/MMMM/g, '[A-Za-z]+')        // Full month name
-			.replace(/MMM/g, '[A-Za-z]+')         // Short month name
-			.replace(/HH/g, '\\d{2}')             // Hour
-			.replace(/mm/g, '\\d{2}')             // Minute
-			.replace(/ss/g, '\\d{2}');            // Second
-
-		return new RegExp(`^${regex}$`);
-	}
 
 	getConfig(type: PeriodicNoteType): PeriodicNoteConfig | null {
 		// Check periodic notes plugin first, then core daily notes
@@ -200,12 +256,22 @@ export class PeriodicNoteDetector {
 	getAllEnabledTypes(): PeriodicNoteType[] {
 		const types: PeriodicNoteType[] = [];
 
-		if (this.coreDailyNotesConfig) {
-			types.push('daily');
+		// Check if core Daily Notes plugin is actually enabled
+		try {
+			const internalPlugins = (this.app as { internalPlugins?: InternalPlugins }).internalPlugins;
+			const dailyNotesPlugin = internalPlugins?.plugins?.['daily-notes'];
+			if (dailyNotesPlugin && dailyNotesPlugin.enabled && this.coreDailyNotesConfig) {
+				types.push('daily');
+			}
+		} catch {
+			// Ignore errors when checking core plugin status
 		}
 
-		this.periodicNotesConfig.forEach((_, type) => {
-			types.push(type);
+		// Add types from Periodic Notes plugin (excluding daily if core plugin handles it)
+		this.periodicNotesConfig.forEach((config, type) => {
+			if (type !== 'daily' || !this.coreDailyNotesConfig) {
+				types.push(type);
+			}
 		});
 
 		return types;

@@ -24,9 +24,24 @@ interface PeriodicNotesSettings {
 	yearlyNotes?: PeriodicNoteSettings;
 }
 
+interface LegacyPeriodicConfig {
+	enabled: boolean;
+	format?: string;
+	template?: string;
+	folder?: string;
+}
+
+interface LegacyPeriodicNotesSettings {
+	daily?: LegacyPeriodicConfig;
+	weekly?: LegacyPeriodicConfig;
+	monthly?: LegacyPeriodicConfig;
+	quarterly?: LegacyPeriodicConfig;
+	yearly?: LegacyPeriodicConfig;
+}
+
 interface PeriodicNotesPlugin {
 	_loaded: boolean;
-	settings: PeriodicNotesSettings;
+	settings: PeriodicNotesSettings | LegacyPeriodicNotesSettings;
 }
 
 interface PluginAPI {
@@ -119,7 +134,7 @@ export class LinkCreator {
 					const plugins = (this.app as { plugins?: PluginAPI }).plugins;
 					const periodicNotesPlugin = plugins?.plugins?.['periodic-notes'];
 					if (periodicNotesPlugin && periodicNotesPlugin._loaded) {
-						templatePath = this.getTemplatePath(target.type, (periodicNotesPlugin as PeriodicNotesPlugin).settings);
+						templatePath = this.getTemplatePath(target.type, periodicNotesPlugin.settings);
 					}
 				}
 
@@ -185,18 +200,24 @@ export class LinkCreator {
 		}
 	}
 
-	private getTemplatePath(type: PeriodicNoteType, settings: PeriodicNotesSettings): string | undefined {
+	private getTemplatePath(type: PeriodicNoteType, settings: PeriodicNotesSettings | LegacyPeriodicNotesSettings): string | undefined {
+		// Handle both legacy format (settings.weekly) and new format (settings.weeklyNotes)
 		switch (type) {
 			case 'daily':
-				return settings.dailyNotes?.template;
+				return (settings as PeriodicNotesSettings).dailyNotes?.template ||
+				       (settings as LegacyPeriodicNotesSettings).daily?.template;
 			case 'weekly':
-				return settings.weeklyNotes?.template;
+				return (settings as PeriodicNotesSettings).weeklyNotes?.template ||
+				       (settings as LegacyPeriodicNotesSettings).weekly?.template;
 			case 'monthly':
-				return settings.monthlyNotes?.template;
+				return (settings as PeriodicNotesSettings).monthlyNotes?.template ||
+				       (settings as LegacyPeriodicNotesSettings).monthly?.template;
 			case 'quarterly':
-				return settings.quarterlyNotes?.template;
+				return (settings as PeriodicNotesSettings).quarterlyNotes?.template ||
+				       (settings as LegacyPeriodicNotesSettings).quarterly?.template;
 			case 'yearly':
-				return settings.yearlyNotes?.template;
+				return (settings as PeriodicNotesSettings).yearlyNotes?.template ||
+				       (settings as LegacyPeriodicNotesSettings).yearly?.template;
 			default:
 				return undefined;
 		}
