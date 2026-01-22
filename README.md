@@ -1,234 +1,86 @@
-# Obsidian Sample Plugin Plus
+# Periodic Links
 
-This is a sample plugin for [Obsidian](https://obsidian.md) with AI-assisted development tools and best practices.
+Automatically link between periodic notes with natural language.
 
-This project uses TypeScript to provide type checking and documentation. The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Features
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do:
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
+- **Natural Language Linking**: Type phrases like "tomorrow", "next week", "last month", etc. and automatically create links to the corresponding periodic notes
+- **Smart Detection**: Only works in periodic notes themselves, intelligently detecting note types based on format, folder, or properties
+- **Compatible with Core Plugins**: Works with Obsidian's core Daily Notes plugin and the Periodic Notes community plugin
+- **Smart Linking**: Creates links to periodic notes (existing or not)
+- **Format Agnostic**: Adapts to your configured date formats for daily, weekly, monthly, quarterly, and yearly notes
 
-## What Makes This Plus Version Different?
+## How It Works
 
-This template includes additional tools and documentation to improve your development experience:
+When you're editing a periodic note, typing natural language phrases will automatically create links:
 
-### AI-Assisted Development System
+- **Daily notes**: `yesterday`, `tomorrow`, `2 days ago`, `in 3 days`
+- **Weekly notes**: `last week`, `next week`, `this week`, `2 weeks ago`
+- **Monthly notes**: `last month`, `next month`, `in 2 months`
+- **Quarterly notes**: `last quarter`, `next quarter`, `Q1 2025`
+- **Yearly notes**: `last year`, `next year`, `2025`
 
-This template uses the OpenSkills system with centralized skills from the [obsidian-dev-skills](https://github.com/davidvkimball/obsidian-dev-skills) repository.
+## Installation
 
-**Setup (one-time):**
-```bash
-# 1. Clone the skills repository as a sibling
-cd ..
-git clone https://github.com/davidvkimball/obsidian-dev-skills.git obsidian-dev-skills
+### From Obsidian Community Plugins
 
-# 2. Set up symlinks to skills
-cd your-plugin-name
-.\scripts\setup-skills.ps1  # Windows PowerShell
-# or
-bash scripts/setup-skills.sh  # macOS/Linux
-```
+1. Open Settings → Community plugins
+2. Browse and search for "Periodic Links"
+3. Install and enable the plugin
 
-**What's included:**
-- **`AGENTS.md`** - OpenSkills entry point for AI agent guidance
-- **`.agent/skills/` folder** - Symlinks to centralized skills repository
-- **Plugin development skills** - TypeScript, API patterns, lifecycle management
-- **Operations skills** - Build, release, and maintenance workflows
-- **Technical references** - API docs, manifest rules, file formats
-- **Project-specific skills** - Your custom patterns and conventions
-
-**Benefits:**
-- Single source of truth for development knowledge
-- Automatic updates when skills are improved
-- Consistent guidance across all your projects
-- Specialized knowledge for plugin vs theme development
-- Helps AI assistants understand your project structure and coding conventions
-- Provides quick reference guides and common task examples
+### Manual Installation
 
-### Reference Materials System (`.ref` folder)
-
-- **Symlinks to Obsidian repositories** - Easy access to API docs, sample code, and examples
-- **Centralized storage** - All projects share the same reference repos (no duplication)
-- **6 core Obsidian projects** - API definitions, documentation, sample plugins, ESLint rules
-- **Project-specific references** - Add your own plugin/theme references as needed
+1. Download the latest release
+2. Extract files to `VaultFolder/.obsidian/plugins/periodic-links/`
+3. Reload Obsidian and enable the plugin
 
-### ESLint 9 with Obsidian Rules
+## Requirements
 
-- **Exact parity with Review Bot** - Uses the same `obsidianmd.configs.recommended` configuration
-- **Automatic migration** - Upgrades from ESLint 8 to ESLint 9 automatically
-- **Smart detection** - Handles `main.ts` in root or `src/` folder automatically
-- **Catches common issues** - Command naming, style manipulation, deprecated APIs, and more
+- **Obsidian** v1.11.0 or higher
+- **Daily Notes** core plugin or **Periodic Notes** community plugin must be configured
 
-**See also:** [obsidian-sample-theme-plus](https://github.com/davidvkimball/obsidian-sample-theme-plus) - The companion theme template with similar enhancements.
+## Settings
 
-## Recommended Tools and Plugins for Plugin Development
+The plugin automatically detects your periodic note configurations. You can customize:
 
-These tools can significantly improve your plugin development workflow:
+- **Detection Methods**: Choose how to identify periodic notes (format, folder, properties)
+- **Cleanup Commands**: Remove broken links when formats change
 
-### Hot Reload Plugins
+## Usage Examples
 
-**[Hot Reload](https://github.com/pjeby/hot-reload)** - Automatically reload your plugin when code changes. Dramatically speeds up development by eliminating manual reloads.
+In a daily note:
+- Type `tomorrow` → Links to tomorrow's daily note
+- Type `next week` → Links to next week's weekly note (if weekly notes enabled)
 
-**[Hot Reload Mobile](https://github.com/shabegom/obsidian-hot-reload-mobile)** - Mobile-compatible version of Hot Reload for testing on mobile devices.
+In a weekly note:
+- Type `last week` → Links to previous week's note
+- Type `next month` → Links to next month's monthly note
 
-## Improve Code Quality with ESLint
+## Compatibility
 
-[ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code.
+- ✅ **Daily Notes** (core plugin)
+- ✅ **Periodic Notes** (community plugin)
+- ✅ **Calendar** plugin weekly notes
+- ✅ Custom date formats
+- ✅ Folder-based organization
 
-- This project already has ESLint preconfigured, you can invoke a check by running `pnpm lint`
-- Together with a custom ESLint [plugin](https://github.com/obsidianmd/eslint-plugin-obsidian) for Obsidian specific code guidelines
+## Contributing
 
-## Quick Start
+This plugin is developed with AI assistance using the OpenSkills system. See `AGENTS.md` for development guidance.
 
-### For New Plugins (Using This as a Template)
+## Credits
 
-1. **Use this template** - Click "Use this template" on GitHub or clone this repo
-2. **Install dependencies**: `pnpm install`
-3. **Optional: Setup reference materials** (recommended):
-   - **Windows**: `scripts\setup-ref-links.bat`
-   - **macOS/Linux**: `./scripts/setup-ref-links.sh`
-4. **Optional: Setup ESLint** (recommended):
-   ```bash
-   node scripts/setup-eslint.mjs
-   pnpm install
-   pnpm lint
-   ```
-5. **Start developing**: `pnpm dev`
+Inspired by and compatible with:
+- [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes) - Core periodic note functionality
+- [Auto Periodic Notes](https://github.com/jamiefdhurst/obsidian-auto-periodic-notes) - Automatic note creation
+- [Memos Sync](https://github.com/RyoJerryYu/obsidian-memos-sync) - Integration patterns
+- [Repeat Plugin](https://github.com/prncc/obsidian-repeat-plugin) - Spaced repetition concepts
 
-### For Existing Plugins (Upgrading to This System)
+## Support
 
-You can add these enhancements to your existing plugin:
-
-1. **Copy these folders/files to your plugin**:
-   - `AGENTS.md` → Your plugin root
-   - `.agents/` folder → Your plugin root
-   - `scripts/` folder → Your plugin root
+- **Issues**: [GitHub Issues](https://github.com/davidvkimball/obsidian-periodic-links/issues)
+- **Funding**: [Patreon](https://patreon.com/davidvkimball)
 
-2. **Setup reference materials**:
-   - **Windows**: `scripts\setup-ref-links.bat`
-   - **macOS/Linux**: `./scripts/setup-ref-links.sh`
-   - This creates symlinks to Obsidian reference repos in `.ref/` folder
-
-3. **Setup ESLint** (recommended):
-   ```bash
-   node scripts/setup-eslint.mjs
-   pnpm install
-   pnpm lint
-   ```
-   
-   **What the setup script does automatically:**
-   - Updates `package.json` with ESLint 9 dependencies and lint scripts
-   - Creates/updates `eslint.config.mjs` (ESLint 9 flat config)
-   - Updates `esbuild.config.mjs` (fixes builtinModules import, adds entry point detection, ensures output to root)
-   - Creates `scripts/lint-wrapper.mjs` (adds helpful success messages)
-   - Removes legacy `.eslintrc` files if present
-   
-   **Note:** The script will update your existing `esbuild.config.mjs` and `eslint.config.mjs` files, but it preserves your custom configuration where possible. Review the changes after running the script.
-   
-   **Important:** Don't copy `package.json` from this template - it contains template-specific values. The setup script will update your existing `package.json` with only the necessary ESLint dependencies and scripts.
+## License
 
-## First Time Developing Plugins?
-
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)!
-- Make a copy of this repo as a template with the "Use this template" button
-- Clone your repo to a local development folder
-- Install NodeJS (v16+), then run `pnpm install`
-- Run `pnpm dev` to compile your plugin (builds to `main.js` in root)
-- For releases, run `pnpm build` which creates `main.js` in root
-- Reload Obsidian to load the new version of your plugin
-- Enable plugin in settings window
-
-## How to Use
-
-### Basic Development
-
-- Clone this repo
-- Make sure your NodeJS is at least v16 (`node --version`)
-- `pnpm install` to install dependencies (or `npm install` - it will automatically proxy to pnpm)
-- **Development**: `pnpm dev` - Builds to `main.js` in root with watch mode
-- **Production**: `pnpm build` - Builds to `main.js` in root (one-time build)
-
-**Note**: This project uses pnpm, but `npm install`, `npm run build`, `npm run dev`, and `npm run lint` will also work for backwards compatibility. The `npm install` command automatically proxies to `pnpm install` via a preinstall hook.
-
-### Using the AI System
-
-- Read `AGENTS.md` to understand the OpenSkills system
-- Use `npx openskills read <skill-name>` to load specialized knowledge
-- Check `.agent/skills/*/references/` for deep technical guides
-
-### Using ESLint
-
-- **Check for issues**: `pnpm lint` (shows helpful success message when passing)
-- **Auto-fix issues**: `pnpm lint:fix`
-
-The lint commands use `scripts/lint-wrapper.mjs` which adds helpful success messages. This file is automatically created/updated when you run `node scripts/setup-eslint.mjs`.
-
-## Releasing New Releases
-
-- Update your `manifest.json` with your new version number and minimum Obsidian version
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"`
-- **Build for production**: Run `pnpm build`
-  - Creates `main.js` in the root directory (compiled from TypeScript)
-- Create new GitHub release using your new version number as the "Tag version" (no `v` prefix)
-- **Upload these files** to the release:
-  - `main.js` (from root)
-  - `manifest.json` (from root)
-  - `styles.css` (from root, if present)
-- Publish the release
-
-> **Tip:** You can simplify the version bump process by running `pnpm version patch`, `pnpm version minor` or `pnpm version major` after updating `minAppVersion` manually in `manifest.json`.
-
-
-## Adding Your Plugin to the Community Plugin List
-
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines)
-- Publish an initial version
-- Make sure you have a `README.md` file in the root of your repo
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin
-
-## Manually Installing the Plugin
-
-- Copy over `main.js`, `manifest.json`, and `styles.css` (if present) from the root directory to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`
-
-## Funding URL
-
-You can include funding URLs in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
-
-Or for multiple URLs:
-
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors"
-    }
-}
-```
-
-## Troubleshooting
-
-### Upgrade Issues
-
-If you're upgrading an existing plugin and encounter issues:
-
-1. **ESLint errors after setup**: Run `pnpm install` to ensure all dependencies are installed
-2. **Build errors**: Check that `esbuild.config.mjs` was updated correctly (the setup script should handle this automatically)
-3. **Entry point not found**: The setup script adds entry point detection - verify `esbuild.config.mjs` has the detection logic for both `src/main.ts` and `main.ts`
-4. **Package.json conflicts**: Don't copy `package.json` from the template - the setup script updates your existing one with only the necessary additions
-
-### Common Issues
-
-- **`.ref` folder is empty**: Run the setup script (`scripts\setup-ref-links.bat` or `.sh`)
-- **Linting fails**: Make sure you ran `pnpm install` after running the ESLint setup script
-- **Build fails**: Check that `esbuild.config.mjs` exists and has the correct entry point detection
-
-## API Documentation
-
-See https://docs.obsidian.md
+MIT License - see LICENSE file for details.

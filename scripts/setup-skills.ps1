@@ -2,7 +2,7 @@
 # This script creates symlinks to the obsidian-dev-skills repository
 
 param(
-    [string]$SkillsRepoPath = "$PSScriptRoot\..\..\obsidian-dev-skills"
+    [string]$SkillsRepoPath = "$PSScriptRoot\..\..\.ref\obsidian-dev-skills"
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,8 +12,7 @@ Write-Host "Setting up skills symlinks for plugin project..." -ForegroundColor C
 # Check if skills repo exists
 if (-not (Test-Path $SkillsRepoPath)) {
     Write-Host "Skills repository not found at: $SkillsRepoPath" -ForegroundColor Red
-    Write-Host "Please clone obsidian-dev-skills to a sibling directory." -ForegroundColor Yellow
-    Write-Host "Example: git clone https://github.com/davidvkimball/obsidian-dev-skills.git obsidian-dev-skills" -ForegroundColor Yellow
+    Write-Host "Please run setup-ref-links script first to set up the .ref folder." -ForegroundColor Yellow
     exit 1
 }
 

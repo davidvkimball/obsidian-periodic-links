@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
-	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"name": "periodic-links",
+	"version": "0.0.1",
+	"description": "Automatically link between periodic notes with natural language.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
@@ -25,10 +25,10 @@
 		"eslint": "^9.39.1",
 		"eslint-plugin-obsidianmd": "0.1.9",
 		"globals": "14.0.0",
+		"jiti": "2.6.1",
 		"tslib": "2.4.0",
 		"typescript": "5.8.3",
-		"typescript-eslint": "8.35.1",
-		"jiti": "2.6.1"
+		"typescript-eslint": "8.35.1"
 	},
 	"dependencies": {
 		"obsidian": "latest"

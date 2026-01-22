@@ -24,6 +24,7 @@ export default defineConfig([
       globals: {
         ...globals.browser,
         require: "readonly", // Node.js require function (available in Obsidian's environment)
+        moment: "readonly", // moment.js bundled with Obsidian
         DomElementInfo: "readonly",
         SvgElementInfo: "readonly",
         activeDocument: "readonly",

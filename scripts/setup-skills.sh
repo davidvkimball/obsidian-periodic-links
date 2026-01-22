@@ -5,15 +5,14 @@
 
 set -e
 
-SKILLS_REPO_PATH="${1:-"../obsidian-dev-skills"}"
+SKILLS_REPO_PATH="${1:-"../.ref/obsidian-dev-skills"}"
 
 echo "Setting up skills symlinks for plugin project..."
 
 # Check if skills repo exists
 if [ ! -d "$SKILLS_REPO_PATH" ]; then
     echo "Skills repository not found at: $SKILLS_REPO_PATH"
-    echo "Please clone obsidian-dev-skills to a sibling directory."
-    echo "Example: git clone https://github.com/davidvkimball/obsidian-dev-skills.git ../obsidian-dev-skills"
+    echo "Please run setup-ref-links script first to set up the .ref folder."
     exit 1
 fi
 

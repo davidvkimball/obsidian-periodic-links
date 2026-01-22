@@ -5,24 +5,6 @@ REM Run this from anywhere: scripts\setup-ref-links.bat
 REM Change to project root (parent of scripts folder)
 cd /d "%~dp0\.."
 
-REM Check Node.js version (requires v16+)
-where node >nul 2>&1
-if %errorlevel% neq 0 (
-    echo ERROR: Node.js is not installed or not in PATH
-    echo Please install Node.js v16+ from https://nodejs.org/
-    exit /b 1
-)
-
-REM Verify Node.js version is v16 or higher
-for /f "tokens=1" %%i in ('node --version') do set NODE_VERSION=%%i
-set NODE_VERSION=%NODE_VERSION:v=%
-for /f "tokens=1 delims=." %%a in ("%NODE_VERSION%") do set NODE_MAJOR=%%a
-if %NODE_MAJOR% lss 16 (
-    echo ERROR: Node.js v16+ is required (found v%NODE_VERSION%)
-    echo Please upgrade Node.js from https://nodejs.org/
-    exit /b 1
-)
-
 echo Setting up symlinks to core Obsidian projects...
 
 REM Central .ref location (one level up from project)
@@ -45,6 +27,28 @@ if %errorlevel% neq 0 (
     echo ERROR: git is not installed or not in PATH
     echo Please install git from https://git-scm.com/
     exit /b 1
+)
+
+REM Clone obsidian-dev-skills if it doesn't exist
+if not exist "%CENTRAL_REF_ROOT%\obsidian-dev-skills" (
+    echo Cloning obsidian-dev-skills...
+    cd "%CENTRAL_REF_ROOT%"
+    git clone https://github.com/davidvkimball/obsidian-dev-skills.git obsidian-dev-skills
+    if %errorlevel% neq 0 (
+        echo ERROR: Failed to clone obsidian-dev-skills
+        echo Check your internet connection and try again
+        cd "%~dp0\.."
+        exit /b 1
+    )
+    cd "%~dp0\.."
+) else (
+    echo Updating obsidian-dev-skills...
+    cd "%CENTRAL_REF_ROOT%\obsidian-dev-skills"
+    git pull
+    if %errorlevel% neq 0 (
+        echo WARNING: Failed to update obsidian-dev-skills (continuing anyway)
+    )
+    cd "%~dp0\.."
 )
 
 REM Clone the 6 core repos if they don't exist, or pull latest if they do
@@ -176,6 +180,15 @@ if not exist "%CENTRAL_REF%\eslint-plugin" (
 
 REM Ensure project .ref directory exists
 if not exist ".ref" mkdir .ref
+
+REM Create symlinks for obsidian-dev-skills
+echo Creating symlink: obsidian-dev-skills
+if exist ".ref\obsidian-dev-skills" rmdir ".ref\obsidian-dev-skills"
+mklink /J ".ref\obsidian-dev-skills" "%CENTRAL_REF_ROOT%\obsidian-dev-skills"
+if errorlevel 1 (
+    echo ERROR: Failed to create symlink for obsidian-dev-skills
+    exit /b 1
+)
 
 REM Create symlinks for each core project
 echo Creating symlink: obsidian-api

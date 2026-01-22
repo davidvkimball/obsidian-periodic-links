@@ -53,6 +53,19 @@ if ! command -v git &> /dev/null; then
     exit 1
 fi
 
+# Clone obsidian-dev-skills if it doesn't exist
+if [ ! -d "$CENTRAL_REF_ROOT/obsidian-dev-skills" ]; then
+    echo "Cloning obsidian-dev-skills..."
+    if ! (cd "$CENTRAL_REF_ROOT" && git clone https://github.com/davidvkimball/obsidian-dev-skills.git obsidian-dev-skills); then
+        echo "ERROR: Failed to clone obsidian-dev-skills"
+        echo "Check your internet connection and try again"
+        exit 1
+    fi
+else
+    echo "Updating obsidian-dev-skills..."
+    (cd "$CENTRAL_REF_ROOT/obsidian-dev-skills" && git pull) || echo "WARNING: Failed to update obsidian-dev-skills (continuing anyway)"
+fi
+
 # Clone the 6 core repos if they don't exist, or pull latest if they do
 if [ ! -d "$CENTRAL_REF/obsidian-api" ]; then
     echo "Cloning obsidian-api..."
@@ -129,6 +142,27 @@ fi
 # Ensure project .ref directory exists
 mkdir -p .ref
 
+# Create symlink for obsidian-dev-skills
+obsidian_dev_skills_link=".ref/obsidian-dev-skills"
+obsidian_dev_skills_target="$CENTRAL_REF_ROOT/obsidian-dev-skills"
+
+if [ -d "$obsidian_dev_skills_target" ]; then
+    # Remove existing link if it exists
+    if [ -L "$obsidian_dev_skills_link" ] || [ -d "$obsidian_dev_skills_link" ]; then
+        rm -rf "$obsidian_dev_skills_link"
+    fi
+
+    # Create symlink
+    ln -s "$obsidian_dev_skills_target" "$obsidian_dev_skills_link"
+    if [ $? -eq 0 ]; then
+        echo "✓ Created symlink: $obsidian_dev_skills_link -> $obsidian_dev_skills_target"
+    else
+        echo "ERROR: Failed to create symlink for obsidian-dev-skills"
+    fi
+else
+    echo "WARNING: obsidian-dev-skills target not found: $obsidian_dev_skills_target"
+fi
+
 # Define the 6 core projects
 CORE_PROJECTS=(
     "obsidian-api"
@@ -170,7 +204,17 @@ echo "Setup complete!"
 echo ""
 echo "Verifying symlinks..."
 
-# Verify symlinks
+# Verify obsidian-dev-skills symlink
+obsidian_dev_skills_link=".ref/obsidian-dev-skills"
+if [ -L "$obsidian_dev_skills_link" ]; then
+    echo "✓ obsidian-dev-skills : Symlink"
+elif [ -d "$obsidian_dev_skills_link" ]; then
+    echo "✗ obsidian-dev-skills : Regular directory (not a symlink)"
+else
+    echo "✗ obsidian-dev-skills : Missing"
+fi
+
+# Verify core project symlinks
 for project in "${CORE_PROJECTS[@]}"; do
     link_path=".ref/$project"
     if [ -L "$link_path" ]; then
