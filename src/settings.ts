@@ -11,7 +11,7 @@ export interface PeriodicLinksSettings {
 }
 
 export const DEFAULT_SETTINGS: PeriodicLinksSettings = {
-	autoCreateNotes: false,
+	autoCreateNotes: true,
 	enableNaturalLanguage: true,
 	enableWrittenNumbers: true,
 	enableExtendedPhrases: true,
@@ -44,10 +44,10 @@ export class PeriodicLinksSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Note creation mode')
-			.setDesc('Choose how to handle links to notes that don\'t exist yet')
+			.setDesc('Choose how to handle links to notes that don\'t exist yet (recommended: immediate for templates)')
 			.addDropdown(dropdown => dropdown
-				.addOption('on-demand', 'Create links to non-existing notes')
 				.addOption('immediate', 'Create notes immediately')
+				.addOption('on-demand', 'Create links to non-existing notes')
 				.setValue(this.plugin.settings.autoCreateNotes ? 'immediate' : 'on-demand')
 				.onChange(async (value) => {
 					this.plugin.settings.autoCreateNotes = value === 'immediate';
