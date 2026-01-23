@@ -86,7 +86,7 @@ export class LinkCreator {
 
 		// Check creation mode
 		const settings = this.getPluginSettings();
-		if (settings?.enableCleanup === true) {
+		if (settings?.autoCreateNotes === true) {
 			// Immediate creation mode - create the file now
 			try {
 			// Ensure the folder exists

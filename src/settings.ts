@@ -2,7 +2,7 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import PeriodicLinksPlugin from "./main";
 
 export interface PeriodicLinksSettings {
-	enableCleanup: boolean;
+	autoCreateNotes: boolean;
 	enableNaturalLanguage: boolean;
 	enableWrittenNumbers: boolean;
 	enableExtendedPhrases: boolean;
@@ -11,7 +11,7 @@ export interface PeriodicLinksSettings {
 }
 
 export const DEFAULT_SETTINGS: PeriodicLinksSettings = {
-	enableCleanup: true,
+	autoCreateNotes: false,
 	enableNaturalLanguage: true,
 	enableWrittenNumbers: true,
 	enableExtendedPhrases: true,
@@ -44,13 +44,13 @@ export class PeriodicLinksSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Note creation mode')
-			.setDesc('Choose whether to create notes immediately or create links to potential notes')
+			.setDesc('Choose how to handle links to notes that don\'t exist yet')
 			.addDropdown(dropdown => dropdown
+				.addOption('on-demand', 'Create links to non-existing notes')
 				.addOption('immediate', 'Create notes immediately')
-				.addOption('on-demand', 'Create links to potential notes')
-				.setValue(this.plugin.settings.enableCleanup ? 'immediate' : 'on-demand')
+				.setValue(this.plugin.settings.autoCreateNotes ? 'immediate' : 'on-demand')
 				.onChange(async (value) => {
-					this.plugin.settings.enableCleanup = value === 'immediate';
+					this.plugin.settings.autoCreateNotes = value === 'immediate';
 					await this.plugin.saveSettings();
 				}));
 

@@ -26,6 +26,11 @@ export class NaturalLanguageParser {
 		'eighty': 80, 'ninety': 90
 	};
 
+	private weekdays: Record<string, number> = {
+		'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+		'thursday': 4, 'friday': 5, 'saturday': 6
+	};
+
 	private parseNumber(word: string): number | null {
 		const lower = word.toLowerCase();
 		if (this.writtenNumbers[lower]) {
@@ -212,6 +217,46 @@ export class NaturalLanguageParser {
 			}
 		}
 
+		// Weekday-specific patterns
+		const weekdayPattern = '(sunday|monday|tuesday|wednesday|thursday|friday|saturday)';
+
+		// next/last [weekday]
+		const nextLastWeekdayPattern = new RegExp(`(next|last)\\s+${weekdayPattern}`, 'i');
+		const nextLastMatch = phrase.match(nextLastWeekdayPattern);
+		if (nextLastMatch && nextLastMatch[1] && nextLastMatch[2]) {
+			const direction = nextLastMatch[1].toLowerCase();
+			const weekdayName = nextLastMatch[2].toLowerCase();
+			const weekday = this.weekdays[weekdayName];
+
+			if (weekday !== undefined) {
+				const isFuture = direction === 'next';
+				const date = this.calculateWeekdayDate(weekday, 1, isFuture, referenceDate);
+				const type = this.unitToType('days', currentType, workAcrossAllPeriodicNotes);
+				if (type) {
+					return { type, date };
+				}
+			}
+		}
+
+		// [number] [weekday] from now / ago
+		const numberWeekdayPattern = new RegExp(`${numberPattern}\\s+${weekdayPattern}\\s+(from\\s+now|ago)`, 'i');
+		const numberWeekdayMatch = phrase.match(numberWeekdayPattern);
+		if (numberWeekdayMatch && numberWeekdayMatch[1] && numberWeekdayMatch[2] && numberWeekdayMatch[3]) {
+			const count = this.parseNumber(numberWeekdayMatch[1]);
+			const weekdayName = numberWeekdayMatch[2].toLowerCase();
+			const direction = numberWeekdayMatch[3].toLowerCase();
+			const weekday = this.weekdays[weekdayName];
+
+			if (count && weekday !== undefined) {
+				const isFuture = direction === 'from now';
+				const date = this.calculateWeekdayDate(weekday, count, isFuture, referenceDate);
+				const type = this.unitToType('days', currentType, workAcrossAllPeriodicNotes);
+				if (type) {
+					return { type, date };
+				}
+			}
+		}
+
 		return null;
 	}
 
@@ -303,5 +348,36 @@ export class NaturalLanguageParser {
 			default:
 				return null;
 		}
+	}
+
+	private calculateWeekdayDate(weekday: number, count: number = 1, isFuture: boolean = true, referenceDate: Moment = moment()): Moment {
+		const currentDay = referenceDate.day();
+		let daysToAdd: number;
+
+		if (isFuture) {
+			// For future dates - always find the NEXT occurrence, never today
+			if (weekday > currentDay) {
+				daysToAdd = weekday - currentDay;
+			} else if (weekday === currentDay) {
+				daysToAdd = 7; // Next week if it's today
+			} else {
+				daysToAdd = 7 - (currentDay - weekday);
+			}
+			// Add additional weeks for count > 1
+			daysToAdd += (count - 1) * 7;
+		} else {
+			// For past dates - always find the PREVIOUS occurrence, never today
+			if (weekday < currentDay) {
+				daysToAdd = -(currentDay - weekday);
+			} else if (weekday === currentDay) {
+				daysToAdd = -7; // Previous week if it's today
+			} else {
+				daysToAdd = -(7 - (weekday - currentDay));
+			}
+			// Subtract additional weeks for count > 1
+			daysToAdd -= (count - 1) * 7;
+		}
+
+		return referenceDate.clone().add(daysToAdd, 'days');
 	}
 }

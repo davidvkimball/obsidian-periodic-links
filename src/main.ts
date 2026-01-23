@@ -145,11 +145,14 @@ export default class PeriodicLinksPlugin extends Plugin {
 				? '(\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)'
 				: '(\\d+)';
 			const unitPattern = '(days?|weeks?|months?|quarters?|years?)';
+			const weekdayPattern = '(sunday|monday|tuesday|wednesday|thursday|friday|saturday)';
 
 			const dynamicPatterns = [
 				new RegExp(`${numberPattern}\\s+${unitPattern}\\s+ago([\\s.,;:!?"']*)$`, 'i'),
 				new RegExp(`in\\s+${numberPattern}\\s+${unitPattern}([\\s.,;:!?"']*)$`, 'i'),
-				new RegExp(`${numberPattern}\\s+${unitPattern}\\s+from\\s+now([\\s.,;:!?"']*)$`, 'i')
+				new RegExp(`${numberPattern}\\s+${unitPattern}\\s+from\\s+now([\\s.,;:!?"']*)$`, 'i'),
+				new RegExp(`(next|last)\\s+${weekdayPattern}([\\s.,;:!?"']*)$`, 'i'),
+				new RegExp(`${numberPattern}\\s+${weekdayPattern}\\s+(from\\s+now|ago)([\\s.,;:!?"']*)$`, 'i')
 			];
 
 			// Check dynamic patterns
