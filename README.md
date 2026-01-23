@@ -2,6 +2,9 @@
 
 Automatically link between periodic notes with natural language.
 
+![periodic-links](https://github.com/user-attachments/assets/35731848-7040-47cc-9570-b7d1a8782f2c)
+
+
 ## Features
 
 - **Natural Language Linking**: Type phrases like "tomorrow", "next week", "last month", etc. and automatically create links to the corresponding periodic notes
