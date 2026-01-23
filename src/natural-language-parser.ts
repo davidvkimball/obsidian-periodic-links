@@ -86,75 +86,75 @@ export class NaturalLanguageParser {
 				break;
 
 			case 'last week':
-				if (workAcrossAllPeriodicNotes || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'weekly') {
 					return { type: 'weekly', date: referenceDate.clone().subtract(1, 'week') };
 				}
 				break;
 
 			case 'next week':
-				if (workAcrossAllPeriodicNotes || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'weekly') {
 					return { type: 'weekly', date: referenceDate.clone().add(1, 'week') };
 				}
 				break;
 
 			case 'this week':
-				if (workAcrossAllPeriodicNotes || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'weekly') {
 					return { type: 'weekly', date: referenceDate.clone() };
 				}
 				break;
 
 			case 'last month':
-				if (workAcrossAllPeriodicNotes || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'monthly') {
 					return { type: 'monthly', date: referenceDate.clone().subtract(1, 'month') };
 				}
 				break;
 
 			case 'next month':
-				if (workAcrossAllPeriodicNotes || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'monthly') {
 					return { type: 'monthly', date: referenceDate.clone().add(1, 'month') };
 				}
 				break;
 
 			case 'this month':
-				if (workAcrossAllPeriodicNotes || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'monthly') {
 					return { type: 'monthly', date: referenceDate.clone() };
 				}
 				break;
 
 			case 'last quarter':
 			case 'previous quarter':
-				if (workAcrossAllPeriodicNotes || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'quarterly') {
 					return { type: 'quarterly', date: referenceDate.clone().subtract(3, 'months') };
 				}
 				break;
 
 			case 'next quarter':
-				if (workAcrossAllPeriodicNotes || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'quarterly') {
 					return { type: 'quarterly', date: referenceDate.clone().add(3, 'months') };
 				}
 				break;
 
 			case 'this quarter':
-				if (workAcrossAllPeriodicNotes || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'quarterly') {
 					return { type: 'quarterly', date: referenceDate.clone() };
 				}
 				break;
 
 			case 'last year':
 			case 'previous year':
-				if (workAcrossAllPeriodicNotes || currentType === 'yearly' || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'yearly') {
 					return { type: 'yearly', date: referenceDate.clone().subtract(1, 'year') };
 				}
 				break;
 
 			case 'next year':
-				if (workAcrossAllPeriodicNotes || currentType === 'yearly' || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'yearly') {
 					return { type: 'yearly', date: referenceDate.clone().add(1, 'year') };
 				}
 				break;
 
 			case 'this year':
-				if (workAcrossAllPeriodicNotes || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily') {
+				if (workAcrossAllPeriodicNotes || currentType === 'yearly') {
 					return { type: 'yearly', date: referenceDate.clone() };
 				}
 				break;
@@ -385,13 +385,13 @@ export class NaturalLanguageParser {
 			case 'days':
 				return workAcrossAllPeriodicNotes || currentType === 'daily' ? 'daily' : null;
 			case 'weeks':
-				return workAcrossAllPeriodicNotes || currentType === 'weekly' || currentType === 'daily' ? 'weekly' : null;
+				return workAcrossAllPeriodicNotes || currentType === 'weekly' ? 'weekly' : null;
 			case 'months':
-				return workAcrossAllPeriodicNotes || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily' ? 'monthly' : null;
+				return workAcrossAllPeriodicNotes || currentType === 'monthly' ? 'monthly' : null;
 			case 'quarters':
-				return workAcrossAllPeriodicNotes || currentType === 'quarterly' || currentType === 'monthly' || currentType === 'weekly' || currentType === 'daily' ? 'quarterly' : null;
+				return workAcrossAllPeriodicNotes || currentType === 'quarterly' ? 'quarterly' : null;
 			case 'years':
-				return 'yearly'; // Always allow yearly since it's the top level
+				return workAcrossAllPeriodicNotes || currentType === 'yearly' ? 'yearly' : null;
 			default:
 				return null;
 		}

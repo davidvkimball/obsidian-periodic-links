@@ -15,7 +15,7 @@ export const DEFAULT_SETTINGS: PeriodicLinksSettings = {
 	enableNaturalLanguage: true,
 	enableWrittenNumbers: true,
 	enableExtendedPhrases: true,
-	workScope: 'all-periodic',
+	workScope: 'current-type',
 	strictFolderCheck: false
 }
 

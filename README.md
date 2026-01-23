@@ -55,9 +55,11 @@ Choose how links to non-existing notes are handled:
 
 ### Work Scope
 Control where natural language parsing works:
-- **Only in current periodic note type**: Conservative mode
-- **Across all periodic note types** (recommended): Allows cross-type linking
+- **Only in current periodic note type** (recommended): Phrases work within the same periodic note type (daily notes stay daily, weekly notes stay weekly, etc.)
+- **Across all periodic note types**: Allows cross-type linking (e.g., "tomorrow" in a yearly note creates a daily note link)
 - **In any file**: Works everywhere (uses current date as reference)
+
+**Note:** When a phrase doesn't align with the current periodic note type, it falls back to using the current date/time as the reference point rather than the note's context.
 
 ### Strict Folder Check
 When enabled, requires notes to match both format AND folder location for stricter validation.
@@ -89,10 +91,13 @@ When enabled, requires notes to match both format AND folder location for strict
 - All weekday patterns support both singular (`Friday`) and plural (`Fridays`) forms
 
 ### Context-Aware
-The plugin detects your current note type and creates appropriate links:
-- In a daily note: `next week` creates weekly note links
-- In a weekly note: `next month` creates monthly note links
-- In a monthly note: `next year` creates yearly note links
+The plugin detects your current note type and creates appropriate links within the same periodic hierarchy:
+- In a daily note: `tomorrow` creates another daily note link
+- In a weekly note: `next week` creates another weekly note link
+- In a monthly note: `next month` creates another monthly note link
+- In a yearly note: `next year` creates another yearly note link
+
+**Note:** With default settings, phrases maintain the same periodic note type. If a phrase doesn't fit the current context (e.g., "next week" in a yearly note), it uses the current date/time as reference.
 
 ## Compatibility
 
