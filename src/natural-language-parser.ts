@@ -158,6 +158,27 @@ export class NaturalLanguageParser {
 					return { type: 'yearly', date: referenceDate.clone() };
 				}
 				break;
+
+			case 'this sunday':
+			case 'this monday':
+			case 'this tuesday':
+			case 'this wednesday':
+			case 'this thursday':
+			case 'this friday':
+			case 'this saturday': {
+				const weekdayPart = phrase.split(' ')[1];
+				if (weekdayPart) {
+					const thisWeekday = this.weekdays[weekdayPart];
+					if (thisWeekday !== undefined) {
+						const date = this.calculateWeekdayDate(thisWeekday, 1, true, referenceDate);
+						const type = this.unitToType('days', currentType, workAcrossAllPeriodicNotes);
+						if (type) {
+							return { type, date };
+						}
+					}
+				}
+				break;
+			}
 		}
 
 		// Dynamic patterns
@@ -189,6 +210,73 @@ export class NaturalLanguageParser {
 			}
 		}
 
+		// Weekday-specific patterns
+		const weekdayPattern = '(sundays|mondays|tuesdays|wednesdays|thursdays|fridays|saturdays|sunday|monday|tuesday|wednesday|thursday|friday|saturday)';
+
+		// next/last [weekday]
+		const nextLastWeekdayPattern = new RegExp(`(next|last)\\s+${weekdayPattern}`, 'i');
+		const nextLastMatch = phrase.match(nextLastWeekdayPattern);
+		if (nextLastMatch && nextLastMatch[1] && nextLastMatch[2]) {
+			const direction = nextLastMatch[1].toLowerCase();
+			const weekdayName = nextLastMatch[2].toLowerCase().replace(/s$/, ''); // Remove plural 's'
+			const weekday = this.weekdays[weekdayName];
+
+			if (weekday !== undefined) {
+				const isFuture = direction === 'next';
+				const date = this.calculateWeekdayDate(weekday, 1, isFuture, referenceDate);
+				const type = this.unitToType('days', currentType, workAcrossAllPeriodicNotes);
+				if (type) {
+					return { type, date };
+				}
+			}
+		}
+
+		// [number] [weekday] from now / ago
+		const numberWeekdayPattern = new RegExp(`${numberPattern}\\s+${weekdayPattern}\\s+(from\\s+now|ago)`, 'i');
+		const numberWeekdayMatch = phrase.match(numberWeekdayPattern);
+		if (numberWeekdayMatch && numberWeekdayMatch[1] && numberWeekdayMatch[2] && numberWeekdayMatch[3]) {
+			const count = this.parseNumber(numberWeekdayMatch[1]);
+			const matchedWeekday = numberWeekdayMatch[2].toLowerCase();
+			const isPlural = matchedWeekday.endsWith('s');
+			const weekdayName = matchedWeekday.replace(/s$/, ''); // Remove plural 's'
+			const direction = numberWeekdayMatch[3].toLowerCase();
+			const weekday = this.weekdays[weekdayName];
+
+			// Check pluralization: count=1 should be singular, count>1 should be plural
+			const correctPluralization = (count === 1 && !isPlural) || (count !== 1 && isPlural);
+
+			if (count && weekday !== undefined && correctPluralization) {
+				const isFuture = direction === 'from now';
+				const date = this.calculateWeekdayDate(weekday, count, isFuture, referenceDate);
+				const type = this.unitToType('days', currentType, workAcrossAllPeriodicNotes);
+				if (type) {
+					return { type, date };
+				}
+			}
+		}
+
+		// in [number] [weekday]
+		const inWeekdayPattern = new RegExp(`in\\s+${numberPattern}\\s+${weekdayPattern}`, 'i');
+		const inWeekdayMatch = phrase.match(inWeekdayPattern);
+		if (inWeekdayMatch && inWeekdayMatch[1] && inWeekdayMatch[2]) {
+			const count = this.parseNumber(inWeekdayMatch[1]);
+			const matchedWeekday = inWeekdayMatch[2].toLowerCase();
+			const isPlural = matchedWeekday.endsWith('s');
+			const weekdayName = matchedWeekday.replace(/s$/, ''); // Remove plural 's'
+			const weekday = this.weekdays[weekdayName];
+
+			// Check pluralization: count=1 should be singular, count>1 should be plural
+			const correctPluralization = (count === 1 && !isPlural) || (count !== 1 && isPlural);
+
+			if (count && weekday !== undefined && correctPluralization) {
+				const date = this.calculateWeekdayDate(weekday, count, true, referenceDate); // Always future for "in"
+				const type = this.unitToType('days', currentType, workAcrossAllPeriodicNotes);
+				if (type) {
+					return { type, date };
+				}
+			}
+		}
+
 		// in X units
 		const inPattern = new RegExp(`in\\s+${numberPattern}\\s+${unitPattern}`, 'i');
 		const inMatch = phrase.match(inPattern);
@@ -216,47 +304,6 @@ export class NaturalLanguageParser {
 				}
 			}
 		}
-
-		// Weekday-specific patterns
-		const weekdayPattern = '(sunday|monday|tuesday|wednesday|thursday|friday|saturday)';
-
-		// next/last [weekday]
-		const nextLastWeekdayPattern = new RegExp(`(next|last)\\s+${weekdayPattern}`, 'i');
-		const nextLastMatch = phrase.match(nextLastWeekdayPattern);
-		if (nextLastMatch && nextLastMatch[1] && nextLastMatch[2]) {
-			const direction = nextLastMatch[1].toLowerCase();
-			const weekdayName = nextLastMatch[2].toLowerCase();
-			const weekday = this.weekdays[weekdayName];
-
-			if (weekday !== undefined) {
-				const isFuture = direction === 'next';
-				const date = this.calculateWeekdayDate(weekday, 1, isFuture, referenceDate);
-				const type = this.unitToType('days', currentType, workAcrossAllPeriodicNotes);
-				if (type) {
-					return { type, date };
-				}
-			}
-		}
-
-		// [number] [weekday] from now / ago
-		const numberWeekdayPattern = new RegExp(`${numberPattern}\\s+${weekdayPattern}\\s+(from\\s+now|ago)`, 'i');
-		const numberWeekdayMatch = phrase.match(numberWeekdayPattern);
-		if (numberWeekdayMatch && numberWeekdayMatch[1] && numberWeekdayMatch[2] && numberWeekdayMatch[3]) {
-			const count = this.parseNumber(numberWeekdayMatch[1]);
-			const weekdayName = numberWeekdayMatch[2].toLowerCase();
-			const direction = numberWeekdayMatch[3].toLowerCase();
-			const weekday = this.weekdays[weekdayName];
-
-			if (count && weekday !== undefined) {
-				const isFuture = direction === 'from now';
-				const date = this.calculateWeekdayDate(weekday, count, isFuture, referenceDate);
-				const type = this.unitToType('days', currentType, workAcrossAllPeriodicNotes);
-				if (type) {
-					return { type, date };
-				}
-			}
-		}
-
 		return null;
 	}
 

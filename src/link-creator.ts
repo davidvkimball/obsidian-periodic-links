@@ -89,13 +89,8 @@ export class LinkCreator {
 		if (settings?.autoCreateNotes === true) {
 			// Immediate creation mode - create the file now
 			try {
-			// Ensure the folder exists
-			if (config.folder) {
-				const folderExists = this.app.vault.getAbstractFileByPath(config.folder);
-				if (!folderExists) {
-					await this.app.vault.createFolder(config.folder);
-				}
-			}
+			// Ensure the folder structure exists
+			await this.ensureFolderStructure(fullPath);
 
 			// Create the file with template content
 			let content = '';
@@ -150,8 +145,8 @@ export class LinkCreator {
 							content = await this.app.vault.cachedRead(templateFile);
 							content = this.processTemplate(content, target.date, target.type);
 						}
-					} catch (error) {
-						console.warn('Failed to read template:', templatePath, error);
+					} catch {
+						// Template read failed, continue without template
 					}
 				}
 			} catch {
@@ -168,8 +163,7 @@ export class LinkCreator {
 
 			// Return natural-looking link without folder prefix
 			return `[[${filename}|${originalPhrase}]]`;
-			} catch (error: unknown) {
-				console.error('Failed to create periodic note:', error);
+			} catch {
 				// Fall back to creating a link that will prompt user to create the file
 				return `[[${filename}|${originalPhrase}]]`;
 			}
@@ -179,8 +173,28 @@ export class LinkCreator {
 		}
 	}
 
+	private async ensureFolderStructure(fullPath: string): Promise<void> {
+		// Extract the folder path from the full path (everything before the last '/')
+		const lastSlashIndex = fullPath.lastIndexOf('/');
+		if (lastSlashIndex === -1) {
+			return; // No folder structure needed
+		}
+
+		const folderPath = fullPath.substring(0, lastSlashIndex);
+
+		// Check if the folder already exists
+		const existingFolder = this.app.vault.getAbstractFileByPath(folderPath);
+		if (existingFolder) {
+			return; // Folder already exists
+		}
+
+		// Create the folder structure recursively
+		await this.app.vault.createFolder(folderPath);
+	}
+
 	private generateFilename(date: Moment, format: string, type: PeriodicNoteType): string {
 		// Use moment.js formatting - date is already a moment object
+		// If format contains slashes, it's a folder path structure
 		return date.format(format);
 	}
 

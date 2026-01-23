@@ -15,7 +15,7 @@ export const DEFAULT_SETTINGS: PeriodicLinksSettings = {
 	enableNaturalLanguage: true,
 	enableWrittenNumbers: true,
 	enableExtendedPhrases: true,
-	workScope: 'current-type',
+	workScope: 'all-periodic',
 	strictFolderCheck: false
 }
 
@@ -41,6 +41,7 @@ export class PeriodicLinksSettingTab extends PluginSettingTab {
 					this.plugin.settings.strictFolderCheck = value;
 					await this.plugin.saveSettings();
 				}));
+
 
 		new Setting(containerEl)
 			.setName('Note creation mode')
