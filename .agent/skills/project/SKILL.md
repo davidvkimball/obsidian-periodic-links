@@ -1,34 +1,32 @@
 ---
 name: project
-description: Project-specific architecture, maintenance tasks, and unique conventions for this repository. Load when performing project-wide maintenance or working with the core architecture.
+description: Project-specific architecture, maintenance tasks, and unique conventions for Periodic Links.
 ---
 
-# Project Context
+# Periodic Links Project Skill
 
-This skill provides the unique context and architectural details for the **Obsidian Sample Plugin Plus** repository.
+Automatically link between periodic notes with natural language. This plugin automates the navigation between Daily, Weekly, Monthly, Quarterly, and Yearly notes by detecting date patterns and creating bi-directional links.
 
-## Purpose
+## Core Architecture
 
-To provide guidance on project-specific structures and tasks that differ from general Obsidian development patterns.
-
-## When to Use
-
-Load this skill when:
-- Understanding the repository's unique architecture.
-- Performing recurring maintenance tasks.
-- Following project-specific coding conventions.
-
-## Project Overview
-
-- **Architecture**: Organized structure with main code in `src/main.ts` and settings in `src/settings.ts`.
-- **Reference Management**: Uses a `.ref` folder with symlinks to centralized Obsidian repositories for API and documentation.
-
-## Maintenance Tasks
-
-- **Sync References**: Run the setup scripts (`scripts/setup-ref-links.*`) to update symlinks to the 6 core Obsidian projects.
-- **Update Skills**: Use `node scripts/update-agents.mjs "Description"` after syncing or updating reference materials.
+- **Natural Language Parsing**: Includes logic to parse date strings and relative time references.
+- **Periodic Note Integration**: Heavily dependent on the "Periodic Notes" core or community plugin structure.
+- **Link Orchestration**: Automates the creation and maintenance of date-based internal links.
 
 ## Project-Specific Conventions
 
-- **Organized Source**: Prefer keeping logic separated into files within `src/` rather than bloating `main.ts`.
-- **Ref Symlinks**: Always use the `.ref/` path when looking up API documentation to ensure parity with the central reference store.
+- **Date-Centric Logic**: All operations revolve around moment-based date calculations.
+- **Workflow Automation**: Designed to be a "set and forget" plugin that maintains vault cross-linking.
+- **Mobile Compatible**: Focused on plain-text/metadata operations without complex UI requirements.
+
+## Key Files
+
+- `src/main.ts`: Main link detection and creation logic.
+- `manifest.json`: Plugin registration and id (`periodic-links`).
+- `esbuild.config.mjs`: Build script for the logic-heavy plugin.
+
+## Maintenance Tasks
+
+- **Link Persistence**: Verify that links remain valid when periodic note naming schemes change.
+- **Moment Audit**: Track Moment.js usage for compatibility with latest Obsidian internal libraries.
+- **Overlap Detection**: Ensure logic handles transitions between different periods (e.g., Daily to Weekly) correctly.

@@ -1,6 +1,6 @@
 {
-  "lastFullSync": "2026-01-22",
-  "lastSyncSource": "Test update after moving sync-status.json to .agent/ root",
+  "lastFullSync": "2026-01-23",
+  "lastSyncSource": "obsidian-dev-skills initialization",
   "filesSynced": [
     "project-overview.md",
     "environment.md",

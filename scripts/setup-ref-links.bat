@@ -29,28 +29,6 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-REM Clone obsidian-dev-skills if it doesn't exist
-if not exist "%CENTRAL_REF_ROOT%\obsidian-dev-skills" (
-    echo Cloning obsidian-dev-skills...
-    cd "%CENTRAL_REF_ROOT%"
-    git clone https://github.com/davidvkimball/obsidian-dev-skills.git obsidian-dev-skills
-    if %errorlevel% neq 0 (
-        echo ERROR: Failed to clone obsidian-dev-skills
-        echo Check your internet connection and try again
-        cd "%~dp0\.."
-        exit /b 1
-    )
-    cd "%~dp0\.."
-) else (
-    echo Updating obsidian-dev-skills...
-    cd "%CENTRAL_REF_ROOT%\obsidian-dev-skills"
-    git pull
-    if %errorlevel% neq 0 (
-        echo WARNING: Failed to update obsidian-dev-skills (continuing anyway)
-    )
-    cd "%~dp0\.."
-)
-
 REM Clone the 6 core repos if they don't exist, or pull latest if they do
 if not exist "%CENTRAL_REF%\obsidian-api" (
     echo Cloning obsidian-api...
@@ -181,15 +159,6 @@ if not exist "%CENTRAL_REF%\eslint-plugin" (
 REM Ensure project .ref directory exists
 if not exist ".ref" mkdir .ref
 
-REM Create symlinks for obsidian-dev-skills
-echo Creating symlink: obsidian-dev-skills
-if exist ".ref\obsidian-dev-skills" rmdir ".ref\obsidian-dev-skills"
-mklink /J ".ref\obsidian-dev-skills" "%CENTRAL_REF_ROOT%\obsidian-dev-skills"
-if errorlevel 1 (
-    echo ERROR: Failed to create symlink for obsidian-dev-skills
-    exit /b 1
-)
-
 REM Create symlinks for each core project
 echo Creating symlink: obsidian-api
 if exist ".ref\obsidian-api" rmdir ".ref\obsidian-api"
@@ -244,4 +213,5 @@ echo Setup complete!
 echo.
 echo Verifying symlinks...
 dir .ref
+
 
