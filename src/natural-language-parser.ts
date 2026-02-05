@@ -31,6 +31,27 @@ export class NaturalLanguageParser {
 		'thursday': 4, 'friday': 5, 'saturday': 6
 	};
 
+	private agoPattern: RegExp;
+	private nextLastWeekdayPattern: RegExp;
+	private numberWeekdayPattern: RegExp;
+	private inWeekdayPattern: RegExp;
+	private inPattern: RegExp;
+	private fromNowPattern: RegExp;
+
+	constructor() {
+		const numberPattern = '(\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)';
+		const unitPattern = '(days?|weeks?|months?|quarters?|years?)';
+		const weekdayPattern = '(sundays|mondays|tuesdays|wednesdays|thursdays|fridays|saturdays|sunday|monday|tuesday|wednesday|thursday|friday|saturday)';
+
+		this.agoPattern = new RegExp(`${numberPattern}\\s+${unitPattern}\\s+ago`, 'i');
+		this.nextLastWeekdayPattern = new RegExp(`(next|last)\\s+${weekdayPattern}`, 'i');
+		this.numberWeekdayPattern = new RegExp(`${numberPattern}\\s+${weekdayPattern}\\s+(from\\s+now|ago)`, 'i');
+		this.inWeekdayPattern = new RegExp(`in\\s+${numberPattern}\\s+${weekdayPattern}`, 'i');
+		this.inPattern = new RegExp(`in\\s+${numberPattern}\\s+${unitPattern}`, 'i');
+		this.fromNowPattern = new RegExp(`${numberPattern}\\s+${unitPattern}\\s+from\\s+now`, 'i');
+	}
+
+
 	private parseNumber(word: string): number | null {
 		const lower = word.toLowerCase();
 		if (this.writtenNumbers[lower]) {
@@ -45,8 +66,8 @@ export class NaturalLanguageParser {
 		// For count > 1, require plural form ("days", not "day")
 		if (count === 1) {
 			return unit === 'day' || unit === 'days' || unit === 'week' || unit === 'weeks' ||
-				   unit === 'month' || unit === 'months' || unit === 'quarter' || unit === 'quarters' ||
-				   unit === 'year' || unit === 'years';
+				unit === 'month' || unit === 'months' || unit === 'quarter' || unit === 'quarters' ||
+				unit === 'year' || unit === 'years';
 		} else {
 			const isPlural = unit.endsWith('s');
 			return isPlural;
@@ -182,27 +203,12 @@ export class NaturalLanguageParser {
 		}
 
 		// Dynamic patterns
-		// Dynamic patterns with written number support and proper pluralization
-		const numberPattern = enableWrittenNumbers
-			? '(\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)'
-			: '(\\d+)';
-		// Use stricter pluralization: require 's' for plural forms when number > 1
-		const unitPattern = '(days?|weeks?|months?|quarters?|years?)';
-
-		// Helper function to validate pluralization
-		const isValidPluralization = (count: number, unit: string): boolean => {
-			const isPlural = unit.endsWith('s');
-			const shouldBePlural = count !== 1;
-			return isPlural === shouldBePlural;
-		};
-
 		// X units ago
-		const agoPattern = new RegExp(`${numberPattern}\\s+${unitPattern}\\s+ago`, 'i');
-		const agoMatch = phrase.match(agoPattern);
+		const agoMatch = phrase.match(this.agoPattern);
 		if (agoMatch && agoMatch[1] && agoMatch[2]) {
 			const count = this.parseNumber(agoMatch[1]);
 			const unit = this.normalizeUnit(agoMatch[2]);
-			if (count && unit && isValidPluralization(count, agoMatch[2])) {
+			if (count && unit && this.isValidPluralization(count, agoMatch[2])) {
 				const type = this.unitToType(unit, currentType, workAcrossAllPeriodicNotes);
 				if (type) {
 					return { type, date: referenceDate.clone().subtract(count, unit) };
@@ -210,12 +216,8 @@ export class NaturalLanguageParser {
 			}
 		}
 
-		// Weekday-specific patterns
-		const weekdayPattern = '(sundays|mondays|tuesdays|wednesdays|thursdays|fridays|saturdays|sunday|monday|tuesday|wednesday|thursday|friday|saturday)';
-
 		// next/last [weekday]
-		const nextLastWeekdayPattern = new RegExp(`(next|last)\\s+${weekdayPattern}`, 'i');
-		const nextLastMatch = phrase.match(nextLastWeekdayPattern);
+		const nextLastMatch = phrase.match(this.nextLastWeekdayPattern);
 		if (nextLastMatch && nextLastMatch[1] && nextLastMatch[2]) {
 			const direction = nextLastMatch[1].toLowerCase();
 			const weekdayName = nextLastMatch[2].toLowerCase().replace(/s$/, ''); // Remove plural 's'
@@ -232,8 +234,7 @@ export class NaturalLanguageParser {
 		}
 
 		// [number] [weekday] from now / ago
-		const numberWeekdayPattern = new RegExp(`${numberPattern}\\s+${weekdayPattern}\\s+(from\\s+now|ago)`, 'i');
-		const numberWeekdayMatch = phrase.match(numberWeekdayPattern);
+		const numberWeekdayMatch = phrase.match(this.numberWeekdayPattern);
 		if (numberWeekdayMatch && numberWeekdayMatch[1] && numberWeekdayMatch[2] && numberWeekdayMatch[3]) {
 			const count = this.parseNumber(numberWeekdayMatch[1]);
 			const matchedWeekday = numberWeekdayMatch[2].toLowerCase();
@@ -256,8 +257,7 @@ export class NaturalLanguageParser {
 		}
 
 		// in [number] [weekday]
-		const inWeekdayPattern = new RegExp(`in\\s+${numberPattern}\\s+${weekdayPattern}`, 'i');
-		const inWeekdayMatch = phrase.match(inWeekdayPattern);
+		const inWeekdayMatch = phrase.match(this.inWeekdayPattern);
 		if (inWeekdayMatch && inWeekdayMatch[1] && inWeekdayMatch[2]) {
 			const count = this.parseNumber(inWeekdayMatch[1]);
 			const matchedWeekday = inWeekdayMatch[2].toLowerCase();
@@ -278,12 +278,11 @@ export class NaturalLanguageParser {
 		}
 
 		// in X units
-		const inPattern = new RegExp(`in\\s+${numberPattern}\\s+${unitPattern}`, 'i');
-		const inMatch = phrase.match(inPattern);
+		const inMatch = phrase.match(this.inPattern);
 		if (inMatch && inMatch[1] && inMatch[2]) {
 			const count = this.parseNumber(inMatch[1]);
 			const unit = this.normalizeUnit(inMatch[2]);
-			if (count && unit && isValidPluralization(count, inMatch[2])) {
+			if (count && unit && this.isValidPluralization(count, inMatch[2])) {
 				const type = this.unitToType(unit, currentType, workAcrossAllPeriodicNotes);
 				if (type) {
 					return { type, date: referenceDate.clone().add(count, unit) };
@@ -292,18 +291,18 @@ export class NaturalLanguageParser {
 		}
 
 		// X units from now
-		const fromNowPattern = new RegExp(`${numberPattern}\\s+${unitPattern}\\s+from\\s+now`, 'i');
-		const fromNowMatch = phrase.match(fromNowPattern);
+		const fromNowMatch = phrase.match(this.fromNowPattern);
 		if (fromNowMatch && fromNowMatch[1] && fromNowMatch[2]) {
 			const count = this.parseNumber(fromNowMatch[1]);
 			const unit = this.normalizeUnit(fromNowMatch[2]);
-			if (count && unit && isValidPluralization(count, fromNowMatch[2])) {
+			if (count && unit && this.isValidPluralization(count, fromNowMatch[2])) {
 				const type = this.unitToType(unit, currentType, workAcrossAllPeriodicNotes);
 				if (type) {
 					return { type, date: now.clone().add(count, unit) };
 				}
 			}
 		}
+
 		return null;
 	}
 

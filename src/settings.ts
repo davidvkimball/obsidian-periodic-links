@@ -21,6 +21,7 @@ export const DEFAULT_SETTINGS: PeriodicLinksSettings = {
 
 export class PeriodicLinksSettingTab extends PluginSettingTab {
 	plugin: PeriodicLinksPlugin;
+	public icon = 'lucide-calendars';
 
 	constructor(app: App, plugin: PeriodicLinksPlugin) {
 		super(app, plugin);

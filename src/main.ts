@@ -13,11 +13,18 @@ function debounce<T extends (...args: unknown[]) => void>(func: T, wait: number)
 	};
 }
 
+import { PeriodicNoteType } from './periodic-note-detector';
+
 export default class PeriodicLinksPlugin extends Plugin {
 	settings: PeriodicLinksSettings;
 	detector: PeriodicNoteDetector;
 	parser: NaturalLanguageParser;
 	linkCreator: LinkCreator;
+
+	// Cache for periodic note type
+	private cachedType: { path: string; type: PeriodicNoteType | null } | null = null;
+
+
 
 	async onload() {
 		try {
@@ -44,10 +51,20 @@ export default class PeriodicLinksPlugin extends Plugin {
 			})
 		);
 
+		// Add manual conversion command
+		this.addCommand({
+			id: 'convert-phrase-to-periodic-link',
+			name: 'Convert phrase to periodic link',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				await this.handleManualConversion(editor, view);
+			},
+		});
+
 		// Add settings tab
 		this.addSettingTab(new PeriodicLinksSettingTab(this.app, this));
 
 	}
+
 
 	onunload() {
 		// Cleanup will be handled by Obsidian's plugin system
@@ -64,9 +81,17 @@ export default class PeriodicLinksPlugin extends Plugin {
 	private async handleEditorChange(editor: Editor, view: MarkdownView) {
 		if (!view.file) return;
 
-		// Check if we're in a periodic note
-		const currentType = this.detector.detectPeriodicType(view.file);
+		// Check if we're in a periodic note (with caching)
+		let currentType: PeriodicNoteType | null;
+		if (this.cachedType && this.cachedType.path === view.file.path) {
+			currentType = this.cachedType.type;
+		} else {
+			currentType = this.detector.detectPeriodicType(view.file);
+			this.cachedType = { path: view.file.path, type: currentType };
+		}
+
 		if (!currentType && this.settings.workScope !== 'everywhere') return;
+
 
 		// Check if natural language parsing is enabled
 		if (!this.settings.enableNaturalLanguage) return;
@@ -97,14 +122,99 @@ export default class PeriodicLinksPlugin extends Plugin {
 
 		// Add appropriate spacing
 		let replacement = linkText;
-		if (trailing.includes(' ')) {
-			replacement += ' ';
-		} else if (trailing.match(/[.,;:!?]/)) {
+		if (trailing.includes(' ') || trailing.includes('\n')) {
+			replacement += trailing.includes(' ') ? ' ' : '\n';
+		} else if (trailing.match(/[.,;:!?\]\)"']/)) {
 			replacement += ' ';
 		}
 
 		editor.replaceRange(replacement, lineStart, lineEnd);
 	}
+
+	private async handleManualConversion(editor: Editor, view: MarkdownView) {
+		if (!view.file) return;
+
+		const cursor = editor.getCursor();
+		let phrase: string;
+		let start: number;
+		let end: number;
+
+		const selection = editor.getSelection();
+		if (selection) {
+			phrase = selection;
+			const from = editor.getCursor('from');
+			const to = editor.getCursor('to');
+			start = from.ch;
+			end = to.ch;
+		} else {
+			// Find phrase at cursor if no selection
+			const line = editor.getLine(cursor.line);
+			const match = this.findPhraseAtCursor(line, cursor);
+			if (!match) return;
+			phrase = match.phrase;
+			start = match.start;
+			end = match.end;
+		}
+
+		// Use caching for periodic note type
+		let currentType: PeriodicNoteType | null;
+		if (this.cachedType && this.cachedType.path === view.file.path) {
+			currentType = this.cachedType.type;
+		} else {
+			currentType = this.detector.detectPeriodicType(view.file);
+			this.cachedType = { path: view.file.path, type: currentType };
+		}
+
+		const workEverywhere = this.settings.workScope === 'everywhere';
+		const workAcrossAllPeriodicNotes = this.settings.workScope === 'all-periodic';
+		const linkTarget = this.parser.parsePhrase(phrase, currentType, view.file, this.settings.enableWrittenNumbers, workAcrossAllPeriodicNotes, workEverywhere);
+
+		if (linkTarget) {
+			const linkText = await this.linkCreator.createLink(linkTarget, phrase);
+			if (linkText) {
+				editor.replaceRange(linkText, { line: cursor.line, ch: start }, { line: cursor.line, ch: end });
+			}
+		}
+	}
+
+	private findPhraseAtCursor(line: string, cursor: EditorPosition): { phrase: string, start: number, end: number } | null {
+		// This is a simplified version of findNaturalLanguagePhrase for manual conversion
+		// It tries to find the word/phrase under the cursor
+		const words = line.split(/(\s+)/);
+		let currentCh = 0;
+		for (let i = 0; i < words.length; i++) {
+			const word = words[i];
+			if (word && cursor.ch >= currentCh && cursor.ch <= currentCh + word.length && !word.match(/^\s+$/)) {
+				// Check if it's a multi-word phrase (e.g., "last week")
+				// For simplicity, we'll try to match against known patterns
+
+				// Try static phrases first
+				const staticPhrases = [
+					'yesterday', 'tomorrow', 'last week', 'next week', 'this week',
+					'last month', 'next month', 'this month',
+					'last quarter', 'previous quarter', 'next quarter', 'this quarter',
+					'last year', 'previous year', 'next year', 'this year'
+				];
+
+				for (const p of staticPhrases) {
+					const regex = new RegExp(`\\b${p}\\b`, 'i');
+					const match = line.match(regex);
+					if (match && match.index !== undefined) {
+						if (cursor.ch >= match.index && cursor.ch <= match.index + match[0].length) {
+							return { phrase: match[0], start: match.index, end: match.index + match[0].length };
+						}
+					}
+				}
+
+				return { phrase: word.replace(/[.,;:!?\]\)"']+$/, ''), start: currentCh, end: currentCh + word.length };
+			}
+			if (word) {
+				currentCh += word.length;
+			}
+		}
+		return null;
+	}
+
 
 	private findNaturalLanguagePhrase(line: string, cursor: EditorPosition): { phrase: string, trailing: string, start: number, end: number } | null {
 		// Check for cursor position being after punctuation/space that follows a phrase

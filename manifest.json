@@ -1,7 +1,7 @@
 {
 	"id": "periodic-links",
 	"name": "Periodic Links",
-	"version": "0.0.1",
+	"version": "0.1.1",
 	"minAppVersion": "1.11.0",
 	"description": "Automatically link between periodic notes with natural language.",
 	"author": "David V. Kimball",
