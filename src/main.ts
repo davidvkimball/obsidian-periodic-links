@@ -124,7 +124,7 @@ export default class PeriodicLinksPlugin extends Plugin {
 		let replacement = linkText;
 		if (trailing.includes(' ') || trailing.includes('\n')) {
 			replacement += trailing.includes(' ') ? ' ' : '\n';
-		} else if (trailing.match(/[.,;:!?\]\)"']/)) {
+		} else if (trailing.match(/[.,;:!?\])"']/)) {
 			replacement += ' ';
 		}
 
@@ -206,7 +206,7 @@ export default class PeriodicLinksPlugin extends Plugin {
 					}
 				}
 
-				return { phrase: word.replace(/[.,;:!?\]\)"']+$/, ''), start: currentCh, end: currentCh + word.length };
+				return { phrase: word.replace(/[.,;:!?\])"']+$/, ''), start: currentCh, end: currentCh + word.length };
 			}
 			if (word) {
 				currentCh += word.length;
