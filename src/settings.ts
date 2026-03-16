@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, SettingGroup, Notice } from "obsidian";
+import { App, PluginSettingTab, SettingGroup, Notice } from "obsidian";
 import PeriodicLinksPlugin from "./main";
 import { ConfirmationModal } from "./modal";
 
@@ -86,7 +86,7 @@ export class PeriodicLinksSettingTab extends PluginSettingTab {
 		printedGroup.addSetting(setting => {
 			setting
 				.setName('Enable printed dates')
-				.setDesc('Enable explicit date formats (August 21, 2024, 8/21/2024, 2024-08-21, etc.)')
+				.setDesc('Enable explicit date formats (august 21, 2024, 8/21/2024, 2024-08-21, etc.)')
 				.addToggle(toggle => toggle
 					.setValue(this.plugin.settings.enablePrintedDates)
 					.onChange(async value => {
@@ -138,7 +138,7 @@ export class PeriodicLinksSettingTab extends PluginSettingTab {
 		bulkGroup.addSetting(setting => {
 			setting
 				.setName('Convert all phrases in vault')
-				.setDesc('Scan all notes in your vault and convert recognized phrases into periodic links. Warning: This cannot be easily undone!')
+				.setDesc('Scan all notes in your vault and convert recognized phrases into periodic links. This cannot be easily undone.')
 				.addButton(button => button
 					.setButtonText('Convert vault')
 					.setWarning()
@@ -147,9 +147,11 @@ export class PeriodicLinksSettingTab extends PluginSettingTab {
 							this.app,
 							"Convert all phrases in vault?",
 							"This will scan every Markdown file in your vault and convert any recognized date phrases into periodic links. This process may take a moment and cannot be easily undone. Are you sure?",
-							async () => {
-								const result = await this.plugin.convertVault();
-								new Notice(`Bulk conversion complete: Linked ${result.totalChanges} phrases across ${result.filesProcessed} files.`);
+							() => {
+								void (async () => {
+									const result = await this.plugin.convertVault();
+									new Notice(`Bulk conversion complete: Linked ${result.totalChanges} phrases across ${result.filesProcessed} files.`);
+								})();
 							}
 						);
 						modal.open();
@@ -161,7 +163,7 @@ export class PeriodicLinksSettingTab extends PluginSettingTab {
 				.setName('Excluded folders')
 				.setDesc('Folders to skip during vault-wide conversion (one per line)')
 				.addTextArea(text => text
-					.setPlaceholder('Templates\nArchive')
+					.setPlaceholder('Templates\narchive')
 					.setValue(this.plugin.settings.excludedFolders.join('\n'))
 					.onChange(async (value) => {
 						this.plugin.settings.excludedFolders = value.split('\n').map(s => s.trim()).filter(s => s !== '');

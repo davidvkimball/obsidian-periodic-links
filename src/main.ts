@@ -3,7 +3,7 @@ import { PeriodicLinksSettings, DEFAULT_SETTINGS, PeriodicLinksSettingTab } from
 import { PeriodicNoteDetector } from './periodic-note-detector';
 import { NaturalLanguageParser } from './natural-language-parser';
 import { LinkCreator } from './link-creator';
-import { ConfirmationModal } from './modal';
+import { LinkCreator } from './link-creator';
 
 // Simple debounce utility
 function debounce<T extends (...args: unknown[]) => void>(func: T, wait: number): (...args: Parameters<T>) => void {
@@ -56,7 +56,7 @@ export default class PeriodicLinksPlugin extends Plugin {
 		// Add manual conversion command
 		this.addCommand({
 			id: 'convert-phrase-to-periodic-link',
-			name: 'Convert phrase to periodic link',
+			name: 'Convert phrase to link',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				await this.handleManualConversion(editor, view);
 			},
@@ -65,7 +65,7 @@ export default class PeriodicLinksPlugin extends Plugin {
 		// Add bulk conversion command
 		this.addCommand({
 			id: 'convert-all-phrases-in-note',
-			name: 'Convert all phrases in current note to periodic links',
+			name: 'Convert all phrases in current note',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				if (!view.file) return;
 				const count = await this.convertAllPhrasesInFile(view.file);
@@ -334,7 +334,7 @@ export default class PeriodicLinksPlugin extends Plugin {
 					// YYYY-MM-DD
 					/\b\d{4}-\d{2}-\d{2}([\s.,;:!?"']+)$/i, // Changed * to +
 					// M/D/YYYY or M/D/YY (various separators)
-					/\b\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}([\s.,;:!?"']+)$/i // Changed * to +
+					/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}([\s.,;:!?"']+)$/i // Changed * to +
 				];
 
 				for (const pattern of explicitDatePatterns) {
@@ -409,13 +409,13 @@ export default class PeriodicLinksPlugin extends Plugin {
 
 		let processedData = data;
 		
-		// Protect frontmatter (properties)
+		// Protect properties
 		const frontmatterMatch = processedData.match(/^---\n[\s\S]*?\n---(?:\n|$)/);
 		if (frontmatterMatch) {
-			const frontmatter = frontmatterMatch[0];
+			const properties = frontmatterMatch[0];
 			const placeholder = `__PERIODIC_LINK_PLACEHOLDER_${placeholders.length}__`;
-			placeholders.push(frontmatter);
-			processedData = processedData.replace(frontmatter, placeholder);
+			placeholders.push(properties);
+			processedData = processedData.replace(properties, placeholder);
 		}
 
 		for (const pattern of protectedPatterns) {
@@ -454,7 +454,7 @@ export default class PeriodicLinksPlugin extends Plugin {
 			'(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2}(?:st|nd|rd|th)?,\\s+\\d{4}',
 			'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{1,2},\\s+\\d{4}',
 			'\\d{4}-\\d{2}-\\d{2}',
-			'\\d{1,2}[\\/\\.-]\\d{1,2}[\\/\\.-]\\d{2,4}'
+			'\\d{1,2}[/.-]\\d{1,2}[/.-]\\d{2,4}'
 		];
 
 		const allPatterns = [...staticPhrases, ...dynamicPatterns, ...explicitDatePatterns];
