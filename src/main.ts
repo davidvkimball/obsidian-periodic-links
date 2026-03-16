@@ -1,8 +1,9 @@
-import { Plugin, MarkdownView, Editor, EditorPosition } from 'obsidian';
+import { Plugin, MarkdownView, Editor, EditorPosition, TFile, Notice } from 'obsidian';
 import { PeriodicLinksSettings, DEFAULT_SETTINGS, PeriodicLinksSettingTab } from './settings';
 import { PeriodicNoteDetector } from './periodic-note-detector';
 import { NaturalLanguageParser } from './natural-language-parser';
 import { LinkCreator } from './link-creator';
+import { ConfirmationModal } from './modal';
 
 // Simple debounce utility
 function debounce<T extends (...args: unknown[]) => void>(func: T, wait: number): (...args: Parameters<T>) => void {
@@ -23,6 +24,7 @@ export default class PeriodicLinksPlugin extends Plugin {
 
 	// Cache for periodic note type
 	private cachedType: { path: string; type: PeriodicNoteType | null } | null = null;
+	private lastReplacement: { line: number, start: number, end: number, time: number } | null = null;
 
 
 
@@ -57,6 +59,17 @@ export default class PeriodicLinksPlugin extends Plugin {
 			name: 'Convert phrase to periodic link',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				await this.handleManualConversion(editor, view);
+			},
+		});
+
+		// Add bulk conversion command
+		this.addCommand({
+			id: 'convert-all-phrases-in-note',
+			name: 'Convert all phrases in current note to periodic links',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				if (!view.file) return;
+				const count = await this.convertAllPhrasesInFile(view.file);
+				new Notice(`Converted ${count} phrases in "${view.file.basename}"`);
 			},
 		});
 
@@ -105,11 +118,20 @@ export default class PeriodicLinksPlugin extends Plugin {
 
 		const { phrase, trailing, start, end } = match;
 
+		// Check if we just replaced this exact area (Undo protection)
+		const nowTime = Date.now();
+		if (this.lastReplacement && 
+			this.lastReplacement.line === cursor.line && 
+			this.lastReplacement.start === start && 
+			Math.abs(this.lastReplacement.time - nowTime) < 2000) {
+			return;
+		}
+
 		// Parse the natural language phrase
 		const parsedPhrase = phrase.toLowerCase();
 		const workEverywhere = this.settings.workScope === 'everywhere';
 		const workAcrossAllPeriodicNotes = this.settings.workScope === 'all-periodic';
-		const linkTarget = this.parser.parsePhrase(parsedPhrase, currentType, view.file, this.settings.enableWrittenNumbers, workAcrossAllPeriodicNotes, workEverywhere);
+		const linkTarget = this.parser.parsePhrase(parsedPhrase, currentType, view.file, this.settings.enableWrittenNumbers, workAcrossAllPeriodicNotes, workEverywhere, this.settings.enablePrintedDates);
 		if (!linkTarget) return;
 
 		// Create the link
@@ -129,6 +151,14 @@ export default class PeriodicLinksPlugin extends Plugin {
 		}
 
 		editor.replaceRange(replacement, lineStart, lineEnd);
+
+		// Store replacement info for Undo protection
+		this.lastReplacement = {
+			line: cursor.line,
+			start: start,
+			end: start + replacement.length,
+			time: Date.now()
+		};
 	}
 
 	private async handleManualConversion(editor: Editor, view: MarkdownView) {
@@ -167,7 +197,7 @@ export default class PeriodicLinksPlugin extends Plugin {
 
 		const workEverywhere = this.settings.workScope === 'everywhere';
 		const workAcrossAllPeriodicNotes = this.settings.workScope === 'all-periodic';
-		const linkTarget = this.parser.parsePhrase(phrase, currentType, view.file, this.settings.enableWrittenNumbers, workAcrossAllPeriodicNotes, workEverywhere);
+		const linkTarget = this.parser.parsePhrase(phrase, currentType, view.file, this.settings.enableWrittenNumbers, workAcrossAllPeriodicNotes, workEverywhere, this.settings.enablePrintedDates);
 
 		if (linkTarget) {
 			const linkText = await this.linkCreator.createLink(linkTarget, phrase);
@@ -233,10 +263,18 @@ export default class PeriodicLinksPlugin extends Plugin {
 		if (this.settings.enableNaturalLanguage) {
 			// Check static phrases
 			for (const phrase of staticPhrases) {
-				const pattern = new RegExp(`\\b${phrase}([\\s.,;:!?"']*)$`, 'i');
+				const pattern = new RegExp(`\\b${phrase}([\\s.,;:!?"']+)$`, 'i'); // Changed * to +
 				const match = beforeCursor.match(pattern);
 				if (match && match.index !== undefined) {
+					// Check if we're inside a link, code, or HTML tag
+					if (this.isInLink(beforeCursor) || this.isInCode(beforeCursor) || this.isInHtml(beforeCursor)) continue;
+
 					const start = match.index;
+					
+					// Ensure not preceded by [[ or | (with optional space)
+					const prefix = beforeCursor.substring(0, start).trim();
+					if (prefix.endsWith('[[') || prefix.endsWith('|')) continue;
+
 					const end = start + match[0].length;
 					const fullMatch = match[0];
 					const trailing = match[1] || '';
@@ -255,22 +293,64 @@ export default class PeriodicLinksPlugin extends Plugin {
 
 				const dynamicPatterns = [
 					// Weekday patterns (check these first)
-					new RegExp(`(next|last)\\s+${weekdayPattern}([\\s.,;:!?"']*)$`, 'i'),
-					new RegExp(`${numberPattern}\\s+${weekdayPattern}\\s+(from\\s+now|ago)([\\s.,;:!?"']*)$`, 'i'),
-					new RegExp(`in\\s+${numberPattern}\\s+${weekdayPattern}([\\s.,;:!?"']*)$`, 'i'),
+					new RegExp(`(next|last)\\s+${weekdayPattern}([\\s.,;:!?"']+)$`, 'i'), // Changed * to +
+					new RegExp(`${numberPattern}\\s+${weekdayPattern}\\s+(from\\s+now|ago)([\\s.,;:!?"']+)$`, 'i'), // Changed * to +
+					new RegExp(`in\\s+${numberPattern}\\s+${weekdayPattern}([\\s.,;:!?"']+)$`, 'i'), // Changed * to +
 					// General time patterns
-					new RegExp(`${numberPattern}\\s+${unitPattern}\\s+ago([\\s.,;:!?"']*)$`, 'i'),
-					new RegExp(`in\\s+${numberPattern}\\s+${unitPattern}([\\s.,;:!?"']*)$`, 'i'),
-					new RegExp(`${numberPattern}\\s+${unitPattern}\\s+from\\s+now([\\s.,;:!?"']*)$`, 'i')
+					new RegExp(`${numberPattern}\\s+${unitPattern}\\s+ago([\\s.,;:!?"']+)$`, 'i'), // Changed * to +
+					new RegExp(`in\\s+${numberPattern}\\s+${unitPattern}([\\s.,;:!?"']+)$`, 'i'), // Changed * to +
+					new RegExp(`${numberPattern}\\s+${unitPattern}\\s+from\\s+now([\\s.,;:!?"']+)$`, 'i') // Changed * to +
 				];
 
 				// Check dynamic patterns
 				for (const pattern of dynamicPatterns) {
 					const match = beforeCursor.match(pattern);
 					if (match && match.index !== undefined) {
+						// Check if we're inside a link, code, or HTML tag
+						if (this.isInLink(beforeCursor) || this.isInCode(beforeCursor) || this.isInHtml(beforeCursor)) continue;
+
 						const fullMatch = match[0];
 						const trailing = match[match.length - 1] || '';
 						const start = match.index;
+
+						// Ensure not preceded by [[ or | (with optional space)
+						const prefix = beforeCursor.substring(0, start).trim();
+						if (prefix.endsWith('[[') || prefix.endsWith('|')) continue;
+
+						const end = start + match[0].length;
+						const matchedText = fullMatch.replace(/[\s.,;:!?"']+$/, '');
+						return { phrase: matchedText, trailing, start, end };
+					}
+				}
+			}
+
+			// Explicit date patterns
+			if (this.settings.enablePrintedDates) {
+				const explicitDatePatterns = [
+					// MMMM D, YYYY or MMMM Do, YYYY
+					/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(st|nd|rd|th)?,\s+\d{4}([\s.,;:!?"']+)$/i, // Changed * to +
+					// MMM D, YYYY
+					/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}([\s.,;:!?"']+)$/i, // Changed * to +
+					// YYYY-MM-DD
+					/\b\d{4}-\d{2}-\d{2}([\s.,;:!?"']+)$/i, // Changed * to +
+					// M/D/YYYY or M/D/YY (various separators)
+					/\b\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}([\s.,;:!?"']+)$/i // Changed * to +
+				];
+
+				for (const pattern of explicitDatePatterns) {
+					const match = beforeCursor.match(pattern);
+					if (match && match.index !== undefined) {
+						// Check if we're inside a link, code, or HTML tag
+						if (this.isInLink(beforeCursor) || this.isInCode(beforeCursor) || this.isInHtml(beforeCursor)) continue;
+
+						const fullMatch = match[0];
+						const trailing = match[match.length - 1] || '';
+						const start = match.index;
+
+						// Ensure not preceded by [[ or | (with optional space)
+						const prefix = beforeCursor.substring(0, start).trim();
+						if (prefix.endsWith('[[') || prefix.endsWith('|')) continue;
+
 						const end = start + match[0].length;
 						const matchedText = fullMatch.replace(/[\s.,;:!?"']+$/, '');
 						return { phrase: matchedText, trailing, start, end };
@@ -282,5 +362,172 @@ export default class PeriodicLinksPlugin extends Plugin {
 		return null;
 	}
 
+	private isInHtml(text: string): boolean {
+		const lastOpen = text.lastIndexOf('<');
+		if (lastOpen === -1) return false;
+		const lastClose = text.lastIndexOf('>');
+		return lastOpen > lastClose;
+	}
 
+	private isInLink(text: string): boolean {
+		const lastOpen = text.lastIndexOf('[[');
+		if (lastOpen === -1) return false;
+		const lastClose = text.lastIndexOf(']]');
+		return lastOpen > lastClose;
+	}
+
+	private isInCode(text: string): boolean {
+		const lastFence = text.lastIndexOf('```');
+		const lastTick = text.lastIndexOf('`');
+		if (lastFence !== -1 && lastFence >= lastTick) {
+			const fences = (text.match(/```/g) || []).length;
+			return fences % 2 !== 0;
+		}
+		const ticks = (text.match(/`/g) || []).length;
+		return ticks % 2 !== 0;
+	}
+
+	public async convertAllPhrasesInFile(file: TFile): Promise<number> {
+		let changesCount = 0;
+		const workEverywhere = this.settings.workScope === 'everywhere';
+		const workAcrossAllPeriodicNotes = this.settings.workScope === 'all-periodic';
+		
+		// Detect type for reference date
+		const currentType = this.detector.detectPeriodicType(file);
+
+		// Read content, find matches, create links (async), then write back.
+		let data = await this.app.vault.read(file);
+		
+		const placeholders: string[] = [];
+		const protectedPatterns = [
+			/```[\s\S]*?```/g,
+			/`[^`\n]+`/g,
+			/\[\[.*?\]\]/g,
+			/\[.*?\]\(.*?\)/g,
+			/<[^>]+>/g
+		];
+
+		let processedData = data;
+		
+		// Protect frontmatter (properties)
+		const frontmatterMatch = processedData.match(/^---\n[\s\S]*?\n---(?:\n|$)/);
+		if (frontmatterMatch) {
+			const frontmatter = frontmatterMatch[0];
+			const placeholder = `__PERIODIC_LINK_PLACEHOLDER_${placeholders.length}__`;
+			placeholders.push(frontmatter);
+			processedData = processedData.replace(frontmatter, placeholder);
+		}
+
+		for (const pattern of protectedPatterns) {
+			processedData = processedData.replace(pattern, (match) => {
+				const placeholder = `__PERIODIC_LINK_PLACEHOLDER_${placeholders.length}__`;
+				placeholders.push(match);
+				return placeholder;
+			});
+		}
+
+		const staticPhrases = [
+			'yesterday', 'tomorrow', 'last week', 'next week', 'this week',
+			'last month', 'next month', 'this month',
+			'last quarter', 'previous quarter', 'next quarter', 'this quarter',
+			'last year', 'previous year', 'next year', 'this year',
+			'this sunday', 'this monday', 'this tuesday', 'this wednesday',
+			'this thursday', 'this friday', 'this saturday'
+		];
+
+		const numberPattern = this.settings.enableWrittenNumbers
+			? '(\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)'
+			: '(\\d+)';
+		const unitPattern = '(days?|weeks?|months?|quarters?|years?)';
+		const weekdayPattern = '(sundays|mondays|tuesdays|wednesdays|thursdays|fridays|saturdays|sunday|monday|tuesday|wednesday|thursday|friday|saturday)';
+
+		const dynamicPatterns = [
+			`(?:next|last)\\s+${weekdayPattern}`,
+			`${numberPattern}\\s+${weekdayPattern}\\s+(?:from\\s+now|ago)`,
+			`in\\s+${numberPattern}\\s+${weekdayPattern}`,
+			`${numberPattern}\\s+${unitPattern}\\s+ago`,
+			`in\\s+${numberPattern}\\s+${unitPattern}`,
+			`${numberPattern}\\s+${unitPattern}\\s+from\\s+now`
+		];
+
+		const explicitDatePatterns = [
+			'(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2}(?:st|nd|rd|th)?,\\s+\\d{4}',
+			'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{1,2},\\s+\\d{4}',
+			'\\d{4}-\\d{2}-\\d{2}',
+			'\\d{1,2}[\\/\\.-]\\d{1,2}[\\/\\.-]\\d{2,4}'
+		];
+
+		const allPatterns = [...staticPhrases, ...dynamicPatterns, ...explicitDatePatterns];
+		const combinedRegex = new RegExp(`\\b(${allPatterns.join('|')})\\b`, 'gi');
+
+		// We use a map to store replacements to avoid multiple async calls for the same phrase
+		const replacements = new Map<string, string>();
+		const matches = Array.from(processedData.matchAll(combinedRegex));
+		
+		for (const match of matches) {
+			const phrase = match[0];
+			if (replacements.has(phrase)) continue;
+
+			const linkTarget = this.parser.parsePhrase(phrase, currentType, file, this.settings.enableWrittenNumbers, workAcrossAllPeriodicNotes, workEverywhere, this.settings.enablePrintedDates);
+			if (linkTarget) {
+				const linkText = await this.linkCreator.createLink(linkTarget, phrase);
+				if (linkText) {
+					replacements.set(phrase, linkText);
+				}
+			}
+		}
+
+		// Apply replacements
+		let finalContent = processedData;
+		finalContent = finalContent.replace(combinedRegex, (match) => {
+			if (replacements.has(match)) {
+				changesCount++;
+				return replacements.get(match)!;
+			}
+			return match;
+		});
+
+		// Restore protected blocks
+		for (let i = 0; i < placeholders.length; i++) {
+			const placeholder = `__PERIODIC_LINK_PLACEHOLDER_${i}__`;
+			const original = placeholders[i];
+			if (original !== undefined) {
+				finalContent = finalContent.replace(placeholder, original);
+			}
+		}
+
+		if (changesCount > 0) {
+			await this.app.vault.modify(file, finalContent);
+		}
+
+		return changesCount;
+	}
+
+	public async convertVault(): Promise<{ filesProcessed: number, totalChanges: number }> {
+		const files = this.app.vault.getMarkdownFiles();
+		let totalChanges = 0;
+		let filesProcessed = 0;
+
+		const notice = new Notice("Converting vault phrases... 0%", 0);
+		let i = 0;
+		for (const file of files) {
+			// Check if file is in an excluded folder
+			const isExcluded = this.settings.excludedFolders.some(folder => file.path.startsWith(folder + '/'));
+			if (isExcluded) {
+				i++;
+				continue;
+			}
+
+			const count = await this.convertAllPhrasesInFile(file);
+			if (count > 0) {
+				totalChanges += count;
+				filesProcessed++;
+			}
+			i++;
+			notice.setMessage(`Converting vault phrases... ${Math.round((i / files.length) * 100)}%`);
+		}
+		notice.hide();
+
+		return { filesProcessed, totalChanges };
+	}
 }

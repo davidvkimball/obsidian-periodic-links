@@ -74,7 +74,7 @@ export class NaturalLanguageParser {
 		}
 	}
 
-	parsePhrase(phrase: string, currentType: PeriodicNoteType | null, currentFile: TFile, enableWrittenNumbers: boolean = true, workAcrossAllPeriodicNotes: boolean = false, workEverywhere: boolean = false): LinkTarget | null {
+	parsePhrase(phrase: string, currentType: PeriodicNoteType | null, currentFile: TFile, enableWrittenNumbers: boolean = true, workAcrossAllPeriodicNotes: boolean = false, workEverywhere: boolean = false, enablePrintedDates: boolean = true): LinkTarget | null {
 		const now = moment();
 
 		// Handle current file's date as reference point
@@ -88,6 +88,13 @@ export class NaturalLanguageParser {
 			}
 		} else {
 			referenceDate = now;
+		}
+
+		if (enablePrintedDates) {
+			const explicitDate = this.parseExplicitDate(phrase);
+			if (explicitDate) {
+				return { type: 'daily', date: explicitDate };
+			}
 		}
 
 		const lowerPhrase = phrase.toLowerCase().trim();
@@ -300,6 +307,30 @@ export class NaturalLanguageParser {
 				if (type) {
 					return { type, date: now.clone().add(count, unit) };
 				}
+			}
+		}
+
+		return null;
+	}
+
+	private parseExplicitDate(phrase: string): Moment | null {
+		const formats = [
+			'MMMM D, YYYY',
+			'MMMM Do, YYYY',
+			'MMM D, YYYY',
+			'YYYY-MM-DD',
+			'M/D/YYYY',
+			'M.D.YYYY',
+			'M-D-YYYY',
+			'M/D/YY',
+			'M.D.YY',
+			'M-D-YY'
+		];
+
+		for (const format of formats) {
+			const m = moment(phrase, format, true);
+			if (m.isValid()) {
+				return m;
 			}
 		}
 

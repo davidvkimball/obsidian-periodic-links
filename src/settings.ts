@@ -1,22 +1,27 @@
-import { App, PluginSettingTab, Setting, SettingGroup } from "obsidian";
+import { App, PluginSettingTab, Setting, SettingGroup, Notice } from "obsidian";
 import PeriodicLinksPlugin from "./main";
+import { ConfirmationModal } from "./modal";
 
 export interface PeriodicLinksSettings {
 	autoCreateNotes: boolean;
 	enableNaturalLanguage: boolean;
+	enablePrintedDates: boolean;
 	enableWrittenNumbers: boolean;
 	enableExtendedPhrases: boolean;
 	workScope: 'current-type' | 'all-periodic' | 'everywhere';
 	strictFolderCheck: boolean;
+	excludedFolders: string[];
 }
 
 export const DEFAULT_SETTINGS: PeriodicLinksSettings = {
 	autoCreateNotes: true,
+	enablePrintedDates: true,
 	enableNaturalLanguage: true,
 	enableWrittenNumbers: true,
 	enableExtendedPhrases: true,
 	workScope: 'current-type',
-	strictFolderCheck: false
+	strictFolderCheck: false,
+	excludedFolders: []
 }
 
 export class PeriodicLinksSettingTab extends PluginSettingTab {
@@ -76,6 +81,20 @@ export class PeriodicLinksSettingTab extends PluginSettingTab {
 					}));
 		});
 
+		const printedGroup = new SettingGroup(containerEl).setHeading("Printed date settings");
+
+		printedGroup.addSetting(setting => {
+			setting
+				.setName('Enable printed dates')
+				.setDesc('Enable explicit date formats (August 21, 2024, 8/21/2024, 2024-08-21, etc.)')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.enablePrintedDates)
+					.onChange(async value => {
+						this.plugin.settings.enablePrintedDates = value;
+						await this.plugin.saveSettings();
+					}));
+		});
+
 		const nlpGroup = new SettingGroup(containerEl).setHeading("Natural language settings");
 
 		nlpGroup.addSetting(setting => {
@@ -110,6 +129,42 @@ export class PeriodicLinksSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.enableExtendedPhrases)
 					.onChange(async value => {
 						this.plugin.settings.enableExtendedPhrases = value;
+						await this.plugin.saveSettings();
+					}));
+		});
+
+		const bulkGroup = new SettingGroup(containerEl).setHeading("Bulk conversion");
+
+		bulkGroup.addSetting(setting => {
+			setting
+				.setName('Convert all phrases in vault')
+				.setDesc('Scan all notes in your vault and convert recognized phrases into periodic links. Warning: This cannot be easily undone!')
+				.addButton(button => button
+					.setButtonText('Convert vault')
+					.setWarning()
+					.onClick(() => {
+						const modal = new ConfirmationModal(
+							this.app,
+							"Convert all phrases in vault?",
+							"This will scan every Markdown file in your vault and convert any recognized date phrases into periodic links. This process may take a moment and cannot be easily undone. Are you sure?",
+							async () => {
+								const result = await this.plugin.convertVault();
+								new Notice(`Bulk conversion complete: Linked ${result.totalChanges} phrases across ${result.filesProcessed} files.`);
+							}
+						);
+						modal.open();
+					}));
+		});
+
+		bulkGroup.addSetting(setting => {
+			setting
+				.setName('Excluded folders')
+				.setDesc('Folders to skip during vault-wide conversion (one per line)')
+				.addTextArea(text => text
+					.setPlaceholder('Templates\nArchive')
+					.setValue(this.plugin.settings.excludedFolders.join('\n'))
+					.onChange(async (value) => {
+						this.plugin.settings.excludedFolders = value.split('\n').map(s => s.trim()).filter(s => s !== '');
 						await this.plugin.saveSettings();
 					}));
 		});

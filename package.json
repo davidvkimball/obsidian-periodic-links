@@ -1,6 +1,6 @@
 {
 	"name": "periodic-links",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"description": "Automatically link between periodic notes with natural language.",
 	"main": "main.js",
 	"type": "module",
