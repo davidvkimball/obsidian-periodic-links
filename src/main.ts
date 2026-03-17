@@ -3,7 +3,6 @@ import { PeriodicLinksSettings, DEFAULT_SETTINGS, PeriodicLinksSettingTab } from
 import { PeriodicNoteDetector } from './periodic-note-detector';
 import { NaturalLanguageParser } from './natural-language-parser';
 import { LinkCreator } from './link-creator';
-import { LinkCreator } from './link-creator';
 
 // Simple debounce utility
 function debounce<T extends (...args: unknown[]) => void>(func: T, wait: number): (...args: Parameters<T>) => void {
@@ -142,13 +141,8 @@ export default class PeriodicLinksPlugin extends Plugin {
 		const lineStart = { line: cursor.line, ch: start };
 		const lineEnd = { line: cursor.line, ch: end };
 
-		// Add appropriate spacing
-		let replacement = linkText;
-		if (trailing.includes(' ') || trailing.includes('\n')) {
-			replacement += trailing.includes(' ') ? ' ' : '\n';
-		} else if (trailing.match(/[.,;:!?\])"']/)) {
-			replacement += ' ';
-		}
+		// Add appropriate spacing (preserve what the user typed)
+		const replacement = linkText + trailing;
 
 		editor.replaceRange(replacement, lineStart, lineEnd);
 
